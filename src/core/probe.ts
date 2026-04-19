@@ -1,0 +1,51 @@
+import os from 'os';
+import fs from 'fs';
+import path from 'path';
+import { execa } from 'execa';
+
+/**
+ * 强制刷新并抓取最新的系统环境探针信息，写入 .ccli/data/01环境.md
+ */
+export async function refreshSystemProbe(): Promise<string> {
+    const platform = os.platform();
+    const arch = os.arch();
+    const cwd = process.cwd();
+
+    let scoopList = '未安装 Scoop 或当前环境无软件列表';
+    try {
+        const { stdout } = await execa('scoop', ['list'], {
+            reject: false,
+            env: { ...process.env, NO_COLOR: '1' }
+        });
+        if (stdout && stdout.trim() !== '') {
+            // 过滤 Scoop 输出，仅保留 Name 和 Version 两列
+            scoopList = stdout.trim().split('\n').map(line => {
+                const trimmed = line.trim();
+                // 保留提示行
+                if (trimmed.startsWith('Installed apps:')) return trimmed;
+
+                const parts = trimmed.split(/\s+/);
+                if (parts.length >= 2) {
+                    // 仅提取前两个元素：Name 和 Version
+                    return `${parts[0].padEnd(12)} ${parts[1]}`;
+                }
+                return line;
+            }).join('\n');
+        }
+    } catch (e) {
+        // 忽略执行异常
+    }
+
+    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\n\n### 当前工作目录\n${cwd}\n\n### Scoop 软件清单\n${scoopList}\n`;
+
+    const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
+
+    // 确保目录存在
+    if (!fs.existsSync(path.dirname(envPath))) {
+        fs.mkdirSync(path.dirname(envPath), { recursive: true });
+    }
+
+    fs.writeFileSync(envPath, probeContent, 'utf-8');
+
+    return probeContent;
+}
