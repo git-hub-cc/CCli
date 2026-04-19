@@ -2,11 +2,12 @@ import { chromium, type BrowserContext, type Page } from 'playwright';
 import path from 'path';
 import fs from 'fs';
 import ora from 'ora';
+import os from 'os';
 import type { ILLMProvider, ChatMessage } from './interface.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { addGridToImage } from '../core/image-processor.js';
 
-const AUTH_DIR = path.join(process.cwd(), '.ccli', 'gemini_auth_profile');
+const AUTH_DIR = path.join(os.homedir(), '.ccli', 'profiles','gemini');
 
 export class GeminiWebProvider implements ILLMProvider {
     name = 'GeminiWeb';

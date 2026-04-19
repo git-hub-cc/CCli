@@ -1,10 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
+import { fileURLToPath } from 'url';
 import { sysLogger, LogLevel, LogRole } from '../core/logger.js';
 import { buildRecapContext } from './builder.js';
 import type { ILLMProvider } from '../llm/interface.js';
 import { AIMLParser } from '../parser/aiml-parser.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
 
 export class BaseRecapMode {
     modeName: 'macros' | 'data' | 'prompts';
@@ -38,7 +42,7 @@ export class BaseRecapMode {
             sysLogger.log(LogLevel.ACTION, '正在请求大模型进行分析，请稍候...');
 
             let recapPrompt = '';
-            const promptPath = path.resolve(process.cwd(), 'prompts', 'recap', `${this.modeName}.md`);
+            const promptPath = path.resolve(PKG_ROOT, 'prompts', 'recap', `${this.modeName}.md`);
             try {
                 recapPrompt = fs.readFileSync(promptPath, 'utf-8').trim();
             } catch (e) {

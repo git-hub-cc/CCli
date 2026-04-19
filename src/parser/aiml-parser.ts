@@ -1,9 +1,13 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { ActionRegistry } from '../actions/base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { localConfig } from '../core/config.js';
 import type { ILLMProvider } from '../llm/interface.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
 
 export interface ParsedNode {
     tag: string;
@@ -57,7 +61,7 @@ export class AIMLParser {
 
             if (!actionInstance) {
                 // 尝试在 macros 目录下寻找同名的动态宏技能
-                const macroFilePath = path.resolve(process.cwd(), 'macros', `${node.tag}.md`);
+                const macroFilePath = path.resolve(PKG_ROOT, 'macros', `${node.tag}.md`);
                 if (fs.existsSync(macroFilePath)) {
                     sysLogger.log(LogLevel.ACTION, `识别到动态宏技能标签: <${node.tag}>，正在展开执行...`);
                     try {

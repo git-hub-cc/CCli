@@ -47,6 +47,12 @@ scoop bucket add scoop-proxy-cn https://github.com/lzwme/scoop-proxy-cn
 ### 2. 本地安装
 
 ```bash
+# 设置 npm 淘宝镜像加速安装
+npm config set registry https://registry.npmmirror.com
+
+# 安装 Playwright 浏览器内核 (用于驱动 网页)
+npx playwright install chrome
+
 # 克隆仓库
 git clone https://github.com/git-hub-cc/ccli.git
 cd ccli

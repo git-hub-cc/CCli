@@ -1,15 +1,21 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { sysLogger, LogLevel } from '../core/logger.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
 
 export class PromptBuilder {
     private promptsDir: string;
     private macroDir: string;
     private dataDir: string;
+    private templateDir: string;
 
     constructor() {
-        this.promptsDir = path.resolve(process.cwd(), 'prompts');
-        this.macroDir = path.resolve(process.cwd(), 'macros');
+        this.promptsDir = path.resolve(PKG_ROOT, 'prompts');
+        this.macroDir = path.resolve(PKG_ROOT, 'macros');
+        this.templateDir = path.resolve(PKG_ROOT, 'data-templates');
         this.dataDir = path.resolve(process.cwd(), '.ccli', 'data');
         this.initDataDir();
     }
@@ -21,17 +27,24 @@ export class PromptBuilder {
         if (!fs.existsSync(this.dataDir)) {
             fs.mkdirSync(this.dataDir, { recursive: true });
         }
-        
+
         const baseFile = path.join(this.dataDir, '00base.md');
-        // 改为判断核心索引文件是否存在，防止环境探针文件干扰初始化
+        
         if (!fs.existsSync(baseFile)) {
-            const baseContent = `# 长期记忆库索引\n\n这是 ccli 的长期记忆存储中心。你可以根据以下说明，在需要时主动加载对应的记忆分片。\n\n### 记忆分片说明\n* **01环境.md**: 存储探针自动获取的系统与目录环境信息。\n* **02个人.md**: 存储用户的个人基本信息、交互偏好、习惯习惯、成长记录等。\n* **03工作.md**: 存储项目背景、业务逻辑、公司规范、任务清单、会议纪要。\n* **04设备.md**: 存储当前硬件环境配置、常用软件路径、环境维护记录、故障库。\n* **05归档.md**: 存储已完结的重大项目总结、历史参考资料、不再频繁变动的备份记录。\n\n### 操作指南\n1. 如果你发现当前任务涉及上述领域，请使用 \`<upload path=".ccli/data/文件名.md" />\` 主动调取记忆。\n`;
-            
-            fs.writeFileSync(baseFile, baseContent, 'utf-8');
-            fs.writeFileSync(path.join(this.dataDir, '02个人.md'), '### 基本信息\n- 用户姓名：未设置\n- 角色定义：开发者\n\n### 偏好与习惯\n- 代码风格：优先使用干净、现代的语法\n- 交互偏好：回复尽量简短，直接给出解决方案或代码块\n- 常用技术栈：未设置\n', 'utf-8');
-            fs.writeFileSync(path.join(this.dataDir, '03工作.md'), '### 基本信息\n- 当前公司/团队：未设置\n- 核心职责：未设置\n\n### 项目规范\n- 代码风格：未设置\n- 命名规范：未设置\n- 提交规范：未设置\n', 'utf-8');
-            fs.writeFileSync(path.join(this.dataDir, '04设备.md'), '### 硬件环境\n- 操作系统：未设置\n\n### 软件配置\n- 包管理器：未设置\n- 默认终端：未设置\n', 'utf-8');
-            fs.writeFileSync(path.join(this.dataDir, '05归档.md'), '### 项目总结\n- 暂无已完结项目总结\n\n### 历史参考资料\n- 暂无\n', 'utf-8');
+            if (fs.existsSync(this.templateDir)) {
+                const files = fs.readdirSync(this.templateDir);
+                for (const file of files) {
+                    if (file.endsWith('.md')) {
+                        const srcPath = path.join(this.templateDir, file);
+                        const destPath = path.join(this.dataDir, file);
+                        if (!fs.existsSync(destPath)) {
+                            fs.copyFileSync(srcPath, destPath);
+                        }
+                    }
+                }
+            } else {
+                sysLogger.log(LogLevel.WARN, `未找到模板目录: ${this.templateDir}，跳过基础记忆初始化。`);
+            }
         }
     }
 
@@ -107,7 +120,6 @@ export class PromptBuilder {
             content += fs.readFileSync(baseDataPath, 'utf-8') + '\n\n';
         }
 
-        
         if (content) {
             return `\n${content}\n## 完成下面任务\n\n`;
         }

@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { localConfig } from './config.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
 
 export interface ChatMessage {
     role: string;
@@ -18,7 +22,7 @@ export class ContextManager {
     private loadHintPrompt() {
         this.cachedHintPrompt = '【系统隐式提示】当前会话历史较长。如果你认为存在干扰或即将达到长度上限，请在本次回复的首行使用 <context action="trim|clear" keep_last="n" /> 标签清理历史。如果无需清理，请正常回答。';
         try {
-            const hintPromptPath = path.resolve(process.cwd(), 'prompts', '05新会话模式.md');
+            const hintPromptPath = path.resolve(PKG_ROOT, 'prompts', '05新会话模式.md');
             this.cachedHintPrompt = fs.readFileSync(hintPromptPath, 'utf-8').trim();
         } catch (e) {}
     }

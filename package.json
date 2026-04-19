@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "description": "Next Generation Agentic CLI",
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "prompts",
+    "macros",
+    "data-templates",
+    "scripts"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --clean",
     "chat": "npm run build && node dist/index.js chat",

@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import fastGlob from 'fast-glob';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
 
 /**
  * 辅助函数：扫描指定目录并将匹配的文件内容追加到上下文中
@@ -31,12 +35,12 @@ export async function buildRecapContext(
     const cwd = process.cwd();
 
     if (mode === 'macros') {
-        content += await appendDirToContext(path.resolve(cwd, 'scripts'), '**/*.{md,ahk,js,ts,py}', 'scripts');
-        content += await appendDirToContext(path.resolve(cwd, 'macros'), '**/*.md', 'macros');
+        content += await appendDirToContext(path.resolve(PKG_ROOT, 'scripts'), '**/*.{md,ahk,js,ts,py}', 'scripts');
+        content += await appendDirToContext(path.resolve(PKG_ROOT, 'macros'), '**/*.md', 'macros');
     } else if (mode === 'data') {
         content += await appendDirToContext(path.resolve(cwd, '.ccli', 'data'), '**/*.md', '.ccli/data');
     } else if (mode === 'prompts') {
-        content += await appendDirToContext(path.resolve(cwd, 'prompts'), '**/*.md', 'prompts', ['recap/**']);
+        content += await appendDirToContext(path.resolve(PKG_ROOT, 'prompts'), '**/*.md', 'prompts', ['recap/**']);
     }
 
     // 注入当前内存的历史记录
@@ -50,7 +54,7 @@ export async function buildRecapContext(
     }
     content += '---\n\n';
 
-    // 将聚合后的内容写入物理文件 res.md
+    // 将聚合后的内容写入物理文件 res.md (工作区数据存放在 cwd)
     const resFilePath = path.resolve(cwd, 'res.md');
     fs.writeFileSync(resFilePath, content, 'utf-8');
 
