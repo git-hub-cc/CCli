@@ -111,20 +111,6 @@ export class ChatEngine {
 
                     const interceptResult = SystemInterceptor.intercept(feedbacks, currentDepth);
 
-                    if (interceptResult.switchModel) {
-                        sysLogger.log(LogLevel.WARN, `接收到模型切换指令，正在尝试切换至 ${interceptResult.switchModel}...`);
-                        try {
-                            await this.provider.close();
-                            this.provider = LLMProviderFactory.create(interceptResult.switchModel);
-                            await this.provider.init(this.options.headless);
-                            sysLogger.log(LogLevel.SUCCESS, `底层驱动已成功动态切换为: ${interceptResult.switchModel}`);
-                            interceptResult.cleanFeedbacks.push(`【系统自动反馈：动作成功】底层驱动已成功切换为 ${interceptResult.switchModel}。`);
-                        } catch (e: any) {
-                            sysLogger.log(LogLevel.ERROR, `模型切换失败: ${e.message}`);
-                            interceptResult.cleanFeedbacks.push(`【系统自动反馈：动作失败】模型切换异常: ${e.message}`);
-                        }
-                    }
-
                     if (interceptResult.needsRestartSession) {
                         sysLogger.log(LogLevel.INFO, `执行上下文重组 (动作: ${interceptResult.restartAction}, 保留: ${interceptResult.restartKeepLast} 轮)...`);
                         this.contextManager.popMessage();
@@ -163,7 +149,11 @@ export class ChatEngine {
                 }
             }
         } catch (error: any) {
-            sysLogger.log(LogLevel.ERROR, `系统异常: ${error.message}`);
+            if (error.message === 'USER_INTERRUPT') {
+                sysLogger.log(LogLevel.INFO, '接收到内部交互中断信号，准备安全退出...');
+            } else {
+                sysLogger.log(LogLevel.ERROR, `系统异常: ${error.message}`);
+            }
         } finally {
             await this.gracefulExit();
         }

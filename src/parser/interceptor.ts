@@ -5,7 +5,6 @@ export interface InterceptorResult {
     needsRestartSession: boolean;
     restartAction: string;
     restartKeepLast: number;
-    switchModel: string | null;
 }
 
 export class SystemInterceptor {
@@ -14,8 +13,7 @@ export class SystemInterceptor {
             cleanFeedbacks: [],
             needsRestartSession: false,
             restartAction: '',
-            restartKeepLast: 0,
-            switchModel: null
+            restartKeepLast: 0
         };
 
         for (let fb of feedbacks) {
@@ -29,12 +27,6 @@ export class SystemInterceptor {
                     result.restartAction = contextMatch[1]!;
                     result.restartKeepLast = parseInt(contextMatch[2]!, 10);
                 }
-                continue;
-            }
-
-            const switchMatch = fb.match(/【SYSTEM_INSTRUCTION:MODEL_SWITCH】\s*provider=(.*?)(?:,|$)/i);
-            if (switchMatch) {
-                result.switchModel = switchMatch[1].trim().toLowerCase();
                 continue;
             }
 

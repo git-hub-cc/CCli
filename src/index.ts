@@ -9,7 +9,7 @@ const program = new Command();
 program
     .name('ccli')
     .description('下一代 Agentic CLI 工具 (ccli)')
-    .version('2.0.0');
+    .version('0.1.0');
 
 program.option('-v, --verbose', '开启 Debug 模式');
 

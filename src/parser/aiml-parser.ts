@@ -69,21 +69,30 @@ export class AIMLParser {
                         // 移除文件顶部的 YAML Meta 头 (--- xxx ---)
                         let template = macroRawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
 
+                        // 注入 {0} 代表未切割的原始参数字符串，防止由于参数自带英文逗号引发解析异常
+                        const rawArgValue = node.content
+                            .replace(/`/g, '``')
+                            .replace(/"/g, '`"')
+                            .replace(/\$/g, '`$');
+                        template = template.replace(/\{0\}/g, () => rawArgValue);
+
                         // 按照逗号分割提取参数
                         const args = node.content.split(',');
                         for (let i = 0; i < args.length; i++) {
                             // 必须优先转义反引号，防止后续步骤添加的反引号被错误地二次转义
                             args[i] = args[i]
-                                .replace(/`/g, '``')   // 第一步：将原有的 ` 替换为 ``
-                                .replace(/"/g, '`"')   // 第二步：将 " 替换为 `"
-                                .replace(/\$/g, '`$'); // 第三步：将 $ 替换为 `$（防止被 PowerShell 解析为空变量）
+                                .replace(/`/g, '``')
+                                .replace(/"/g, '`"')
+                                .replace(/\$/g, '`$');
 
                             const argValue = args[i]?.trim() || '';
                             // 替换 {1}, {2} 等占位符。使用函数返回值避免 argValue 中含有特殊 $ 符号引发错误
                             template = template.replace(new RegExp(`\\{${i + 1}\\}`, 'g'), () => argValue);
                         }
 
-                        // 递归解析并执行宏展开后的内部节点
+                        template = template.replace(/\{\d+\}/g, '');
+                        template = template.replace(/\.\/scripts\//g, `${PKG_ROOT.replace(/\\/g, '/')}/scripts/`);
+
                         const innerNodes = AIMLParser.parse(template);
                         const innerFeedbacks = await AIMLParser.executeNodes(innerNodes, provider);
                         feedbacks.push(...innerFeedbacks);

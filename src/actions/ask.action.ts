@@ -25,10 +25,10 @@ export class AskAction extends BaseAction {
                 return `【系统自动反馈：用户输入结果】\n${answer}`;
             }
         } catch (err: any) {
-            // 处理用户强行中断 (Ctrl+C)
+            // 处理用户强行中断 (Ctrl+C)，通过抛出特殊错误，交由外层生命周期统一释放浏览器资源
             if (err.name === 'ExitPromptError') {
                 sysLogger.log(LogLevel.ERROR, '用户强制取消了输入');
-                process.exit(1);
+                throw new Error('USER_INTERRUPT');
             }
             throw err;
         }
