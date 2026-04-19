@@ -15,15 +15,37 @@ export class ActAction extends BaseAction {
         }
 
         const command = content.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
-        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}`);
+        const isWindow = attributes['window'] === 'true';
 
-        // 内部辅助方法：限制日志长度，保留末尾的有效报错信息
+        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}${isWindow ? ' (新独立窗口模式)' : ''}`);
+
         const truncateLog = (log: string) => {
             if (!log) return '';
             return log.length > localConfig.maxErrorLogLength
                 ? `...[前方内容已截断]\n${log.slice(-localConfig.maxErrorLogLength)}`
                 : log;
         };
+
+        if (isWindow) {
+            try {
+                let winCmd = '';
+                if (process.platform === 'win32') {
+                    winCmd = `start powershell -NoExit -Command "${command.replace(/"/g, '\\"')}"`;
+                } else if (process.platform === 'darwin') {
+                    winCmd = `osascript -e 'tell app "Terminal" to do script "${command.replace(/"/g, '\\"')}"'`;
+                } else {
+                    winCmd = `x-terminal-emulator -e "${command.replace(/"/g, '\\"')}"`;
+                }
+
+                execa(winCmd, { shell: true, detached: true }).unref();
+
+                sysLogger.log(LogLevel.SUCCESS, `已唤起新独立窗口执行服务命令`);
+                return `【系统自动反馈：命令执行结果】\n已成功在独立的物理新窗口启动了该服务或命令。当前主进程未被阻塞，请继续完成下一步任务。`;
+            } catch (err: any) {
+                sysLogger.log(LogLevel.ERROR, `唤起新窗口异常: ${err.message}`);
+                throw new Error(`唤起新窗口异常:\n${err.message}`);
+            }
+        }
 
         try {
             let finalCommand = command;
