@@ -66,6 +66,12 @@ export class AIMLParser {
                     sysLogger.log(LogLevel.ACTION, `识别到动态宏技能标签: <${node.tag}>，正在展开执行...`);
                     try {
                         const macroRawContent = fs.readFileSync(macroFilePath, 'utf-8');
+                        
+                        const requiresMatch = macroRawContent.match(/requires:\s*(.+)/);
+                        if (requiresMatch && requiresMatch[1]) {
+                            sysLogger.log(LogLevel.INFO, `[预检] 当前技能依赖前置条件: ${requiresMatch[1].trim()}`);
+                        }
+
                         // 移除文件顶部的 YAML Meta 头 (--- xxx ---)
                         let template = macroRawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
 

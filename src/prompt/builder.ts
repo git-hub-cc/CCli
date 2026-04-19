@@ -95,10 +95,12 @@ export class PromptBuilder {
                 // 利用正则简单解析 YAML Meta 头
                 const nameMatch = content.match(/name:\s*(.+)/);
                 const descMatch = content.match(/description:\s*(.+)/);
+                const reqMatch = content.match(/requires:\s*(.+)/);
 
                 if (nameMatch && nameMatch[1] && descMatch && descMatch[1]) {
+                    const reqText = reqMatch && reqMatch[1] ? ` [前置要求: ${reqMatch[1].trim()}]` : '';
                     // 只生成技能列表项，前置的说明头已被独立为 04宏技能库.md
-                    macroList += `- <${nameMatch[1].trim()}>: ${descMatch[1].trim()}\n`;
+                    macroList += `- <${nameMatch[1].trim()}>: ${descMatch[1].trim()}${reqText}\n`;
                     hasValidMacro = true;
                 }
             } catch (err) {

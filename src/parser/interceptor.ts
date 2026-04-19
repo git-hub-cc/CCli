@@ -30,6 +30,11 @@ export class SystemInterceptor {
                 continue;
             }
 
+            // 防御性监控：如果底层脚本抛出了明确的动作拒绝状态，打印警告日志提醒用户
+            if (fb.includes('【动作被拒绝】')) {
+                sysLogger.log(LogLevel.WARN, '触发系统防御拦截：AI 执行的动作由于前置状态不满足被底层拒绝。');
+            }
+
             result.cleanFeedbacks.push(fb);
         }
 

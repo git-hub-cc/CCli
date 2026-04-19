@@ -1,7 +1,11 @@
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { execa } from 'execa';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
 
 /**
  * 强制刷新并抓取最新的系统环境探针信息，写入 .ccli/data/01环境.md
@@ -36,7 +40,18 @@ export async function refreshSystemProbe(): Promise<string> {
         // 忽略执行异常
     }
 
-    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\n\n### 当前工作目录\n${cwd}\n\n### Scoop 软件清单\n${scoopList}\n`;
+    let windowsList = '无法获取当前窗口列表';
+    try {
+        const winScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'list-windows.py');
+        const { stdout: winOut } = await execa('python', [winScriptPath], { reject: false });
+        if (winOut && winOut.trim() !== '') {
+            windowsList = winOut.trim();
+        }
+    } catch (e) {
+        // 忽略执行异常
+    }
+
+    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\n\n### 当前工作目录\n${cwd}\n\n### 当前运行的窗口\n${windowsList}\n\n### Scoop 软件清单\n${scoopList}\n`;
 
     const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
 

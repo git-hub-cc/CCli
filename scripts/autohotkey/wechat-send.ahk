@@ -9,7 +9,7 @@ TextMessage := A_Args.Has(2) ? A_Args[2] : ""
 FilePath    := A_Args.Has(3) ? A_Args[3] : ""
 
 if (SearchTerm = "" || (TextMessage = "" && FilePath = "")) {
-    FileAppend("【错误】参数不足！请至少提供搜索词，以及文本或文件之一。`n", "*", "UTF-8")
+    FileAppend("【执行异常】参数不足！请至少提供搜索词，以及文本或文件之一。`n", "*", "UTF-8")
     ExitApp(1)
 }
 
@@ -17,13 +17,13 @@ WeChatExe := "Weixin.exe"
 
 ; --- 2. 严格的前置校验 ---
 if !WinExist("ahk_exe " WeChatExe) {
-    FileAppend("【错误】未找到微信窗口，请先使用 wechat_open 技能打开微信，并确认已登录。`n", "*", "UTF-8")
+    FileAppend("【动作被拒绝】未找到微信窗口。请先使用 list-apps 获取微信的绝对路径并使用 <act> 启动它，或提示用户手动打开后再尝试。`n", "*", "UTF-8")
     ExitApp(1)
 }
 
 WinActivate("ahk_exe " WeChatExe)
 if !WinWaitActive("ahk_exe " WeChatExe, , 5) {
-    FileAppend("【错误】无法将微信窗口激活到前台，发送操作已中止。`n", "*", "UTF-8")
+    FileAppend("【动作被拒绝】无法将微信窗口激活到前台，发送操作已中止。可能微信未完全加载或处于未登录状态，请先查验状态。`n", "*", "UTF-8")
     ExitApp(1)
 }
 
@@ -45,7 +45,7 @@ if (TextMessage != "") {
     A_Clipboard := ""
     A_Clipboard := TextMessage
     if !ClipWait(2) {
-        FileAppend("【错误】剪贴板写入文本超时！`n", "*", "UTF-8")
+        FileAppend("【执行异常】剪贴板写入文本超时！`n", "*", "UTF-8")
         ExitApp(1)
     }
     Send("^v")
