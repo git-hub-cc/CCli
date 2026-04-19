@@ -7,9 +7,11 @@
     "build": "tsup src/index.ts --format esm --clean",
     "chat": "npm run build && node dist/index.js chat",
     "chat headless": "npm run build && node dist/index.js chat --headless",
+    "chat:agentrouter": "npm run build && node dist/index.js chat --provider agentrouter",
     "chat:doubao": "npm run build && node dist/index.js chat --provider doubao",
     "chat:doubao headless": "npm run build && node dist/index.js chat --headless --provider doubao",
-    "chat:agentrouter": "npm run build && node dist/index.js chat --provider agentrouter"
+    "chat:mimo": "npm run build && node dist/index.js chat --provider mimo",
+    "chat:mimo headless": "npm run build && node dist/index.js chat --headless --provider mimo"
   },
   "type": "module",
   "bin": {
