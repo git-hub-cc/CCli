@@ -51,7 +51,18 @@ export async function refreshSystemProbe(): Promise<string> {
         // 忽略执行异常
     }
 
-    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\n\n### 当前工作目录\n${cwd}\n\n### 当前运行的窗口\n${windowsList}\n\n### Scoop 软件清单\n${scoopList}\n`;
+    let displayInfo = '无法获取显示器拓扑与缩放信息';
+    try {
+        const displayScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'get-display-info.py');
+        const { stdout: displayOut } = await execa('python', [displayScriptPath], { reject: false });
+        if (displayOut && displayOut.trim() !== '') {
+            displayInfo = displayOut.trim();
+        }
+    } catch (e) {
+        // 忽略执行异常
+    }
+
+    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\n\n### 当前工作目录\n${cwd}\n\n### 显示器拓扑与缩放\n${displayInfo}\n\n### 当前运行的窗口\n${windowsList}\n\n### Scoop 软件清单\n${scoopList}\n`;
 
     const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
 
