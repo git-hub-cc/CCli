@@ -13,35 +13,43 @@ if (SearchTerm = "" || (TextMessage = "" && FilePath = "")) {
     ExitApp(1)
 }
 
-WeChatExe := "Weixin.exe"
+TargetExe := "Feishu.exe"
 
-; --- 2. 严格的前置校验 ---
-if !WinExist("ahk_exe " WeChatExe) {
-    FileAppend("【动作被拒绝】未找到微信窗口。请先使用 get-app-paths 获取微信的绝对路径并使用 <act> 启动它，或提示用户手动打开后再尝试。`n", "*", "UTF-8")
+; --- 2. 前置状态校验 ---
+if !WinExist("ahk_exe " TargetExe) {
+    FileAppend("【动作被拒绝】未找到飞书窗口。请先使用 get-app-paths 获取飞书的绝对路径并使用 <act> 启动它，或提示用户手动打开后再尝试。`n", "*", "UTF-8")
     ExitApp(1)
 }
 
-WinActivate("ahk_exe " WeChatExe)
-if !WinWaitActive("ahk_exe " WeChatExe, , 5) {
-    FileAppend("【动作被拒绝】无法将微信窗口激活到前台，发送操作已中止。可能微信未完全加载或处于未登录状态，请先查验状态。`n", "*", "UTF-8")
+WinActivate("ahk_exe " TargetExe)
+if !WinWaitActive("ahk_exe " TargetExe, , 5) {
+    FileAppend("【动作被拒绝】无法将飞书窗口激活到前台，发送操作已中止。可能飞书未完全加载或处于未登录状态，请先查验状态。`n", "*", "UTF-8")
     ExitApp(1)
 }
 
-; 强制切换英文输入法避免中文劫持快捷键
+; 强制切换英文输入法避免快捷键被拦截
 SetImeStatus(0)
-Sleep(200)
+Sleep(300)
 
-; --- 3. 搜索联系人 ---
-Send("^f")
-Sleep(500)
-Send("{Text}" SearchTerm)
-Sleep(1200) ; 等待搜索结果列表弹出
+; --- 3. 触发全局搜索并进入会话 ---
+Send("^k")
+Sleep(600)
+
+SavedClip := ClipboardAll()
+A_Clipboard := ""
+A_Clipboard := SearchTerm
+if !ClipWait(2) {
+    FileAppend("【执行异常】剪贴板写入搜索词超时！`n", "*", "UTF-8")
+    ExitApp(1)
+}
+
+Send("^v")
+Sleep(1500) ; 等待飞书服务端检索结果并渲染列表
 Send("{Enter}")
-Sleep(800)
+Sleep(1000) ; 等待聊天面板加载就绪
 
 ; --- 4. 发送文本消息 ---
 if (TextMessage != "") {
-    SavedClip := ClipboardAll()
     A_Clipboard := ""
     A_Clipboard := TextMessage
     if !ClipWait(2) {
@@ -49,24 +57,26 @@ if (TextMessage != "") {
         ExitApp(1)
     }
     Send("^v")
-    Sleep(300)
+    Sleep(400)
     Send("{Enter}")
     Sleep(500)
-    A_Clipboard := SavedClip
-    SavedClip := ""
 }
 
-; --- 5. 发送文件 ---
+; --- 5. 发送文件附件 ---
 if (FilePath != "" && FileExist(FilePath)) {
     psCommand := "PowerShell -NoProfile -Command `"Set-Clipboard -Path '" FilePath "'`""
     RunWait(psCommand, , "Hide")
-    Sleep(500)
+    Sleep(600)
     Send("^v")
-    Sleep(2000) ; 等待微信读取文件并渲染缩略图
+    Sleep(2000) ; 等待飞书读取本地文件并生成上传预览缩略图
     Send("{Enter}")
 }
 
-FileAppend("【成功】消息指令执行完毕。`n", "*", "UTF-8")
+; 恢复用户剪贴板
+A_Clipboard := SavedClip
+SavedClip := ""
+
+FileAppend("【成功】飞书消息指令执行完毕。`n", "*", "UTF-8")
 ExitApp(0)
 
 ; --- 辅助函数 ---

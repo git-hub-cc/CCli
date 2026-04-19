@@ -120,8 +120,8 @@ ccli chat --headless
 
 存放在 `macros/` 目录下的 `.md` 文件会自动被注册为 AI 可用的技能：
 - `<scan />`: 扫描当前目录下的有效文件树。
-- `<list-apps />`: 获取当前系统所有已安装应用的绝对路径。
-- `<list-windows />`: 查看当前运行中的应用窗口列表。
+- `<get-app-paths />`: 获取当前系统所有已安装应用的绝对路径。
+- `<list-running-apps />`: 查看当前运行中的应用窗口列表。
 - `<screenshot>软件名称,保存路径</screenshot>`: 截取指定窗口或全屏。
 - `<wechat-send>搜索词,消息文本,文件路径</wechat-send>`: 自动操作微信发送消息。
 

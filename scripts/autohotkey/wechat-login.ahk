@@ -17,7 +17,7 @@ if WinExist("ahk_exe " WeChatExe) {
         ExitApp(1)
     }
 } else {
-    FileAppend("【动作被拒绝】检测到微信进程不存在。请先调用 list-apps 获取路径并使用 <act> 启动它后再尝试执行登录。`n", "*", "UTF-8")
+    FileAppend("【动作被拒绝】检测到微信进程不存在。请先调用 get-app-paths 获取路径并使用 <act> 启动它后再尝试执行登录。`n", "*", "UTF-8")
     ExitApp(1)
 }
 

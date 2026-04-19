@@ -42,7 +42,7 @@ export async function refreshSystemProbe(): Promise<string> {
 
     let windowsList = '无法获取当前窗口列表';
     try {
-        const winScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'list-windows.py');
+        const winScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'list-running-apps.py');
         const { stdout: winOut } = await execa('python', [winScriptPath], { reject: false });
         if (winOut && winOut.trim() !== '') {
             windowsList = winOut.trim();
