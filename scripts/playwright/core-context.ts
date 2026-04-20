@@ -35,11 +35,13 @@ export async function getConnectedPage(): Promise<{ browser: any, context: Brows
     if (!isOpen) {
         console.log(`【系统状态反馈】检测到浏览器自动化宿主未启动，正在拉起持久化守护进程 (端口: ${CDP_PORT})...`);
         let chromePath = '';
+        let browserName = 'chrome';
         
         if (process.platform === 'win32') {
             chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
             if (!fs.existsSync(chromePath)) {
                 chromePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+                browserName = 'edge';
             }
         } else if (process.platform === 'darwin') {
             chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -51,11 +53,19 @@ export async function getConnectedPage(): Promise<{ browser: any, context: Brows
             throw new Error(`未能在默认路径找到 Chrome/Edge 浏览器，请检查安装状态。`);
         }
 
-        const logDir = path.join(process.cwd(), '.ccli', 'logs');
-        if (!fs.existsSync(logDir)) {
-            fs.mkdirSync(logDir, { recursive: true });
+        let logDir = '';
+        if (process.env.CCLI_BROWSER_LOG_DIR && fs.existsSync(process.env.CCLI_BROWSER_LOG_DIR)) {
+            logDir = process.env.CCLI_BROWSER_LOG_DIR;
+        } else if (process.env.CCLI_SESSION_DIR && fs.existsSync(process.env.CCLI_SESSION_DIR)) {
+            logDir = process.env.CCLI_SESSION_DIR;
+        } else {
+            logDir = path.join(process.cwd(), '.ccli', 'logs');
+            if (!fs.existsSync(logDir)) {
+                fs.mkdirSync(logDir, { recursive: true });
+            }
         }
-        const crashLogPath = path.join(logDir, 'browser-crash.log');
+        
+        const crashLogPath = path.join(logDir, `browser-crash-${browserName}-${CDP_PORT}.log`);
         const errLogStream = fs.openSync(crashLogPath, 'a');
 
         // 以脱离父进程(detached)模式启动，保证 CLI 会话结束后浏览器可独立存活
@@ -64,7 +74,11 @@ export async function getConnectedPage(): Promise<{ browser: any, context: Brows
             `--user-data-dir=${AUTH_DIR}`,
             '--no-first-run',
             '--no-default-browser-check',
-            '--restore-last-session'
+            '--restore-last-session',
+            '--disable-background-networking',
+            '--disable-sync',
+            '--disable-client-side-phishing-detection',
+            '--disable-default-apps'
         ], { 
             detached: true, 
             stdio: ['ignore', 'ignore', errLogStream] 

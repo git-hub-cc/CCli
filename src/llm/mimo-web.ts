@@ -62,7 +62,7 @@ export class MimoWebProvider implements ILLMProvider {
             await this.page.keyboard.press('Enter');
 
             // 预留缓冲时间，等待网络请求发出并清空输入框
-            await this.page.waitForTimeout(2000);
+            await this.page.waitForTimeout(12000);
 
             try {
                 await this.page.waitForFunction(() => {

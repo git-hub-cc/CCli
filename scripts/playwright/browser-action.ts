@@ -40,6 +40,14 @@ async function main() {
         await page.waitForTimeout(300);
 
         if (action === 'click' || action === 'c') {
+            // 拦截并移除 target="_blank" 属性，强制在当前页打开
+            await locator.evaluate((node) => {
+                const el = node as HTMLLinkElement;
+                if (el.getAttribute('target') === '_blank') {
+                    el.removeAttribute('target');
+                }
+            }).catch(() => {});
+
             await locator.click({ force: true, timeout: 15000 });
             console.log(`【系统自动反馈】已成功点击元素 [${targetId}]。`);
         } 

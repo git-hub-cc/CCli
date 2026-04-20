@@ -17,7 +17,7 @@ program
     .command('chat')
     .description('开启连续对话模式 (Agent 模式)')
     .option('--headless', '后台静默运行浏览器 (节省内存，更快响应)')
-    .option('-p, --provider <name>', '指定底层模型驱动 (支持: gemini, doubao, agentrouter, mimo)')
+    .option('-p, --provider <name>', '指定底层模型驱动 (支持: gemini, doubao, agentrouter, mimo, siliconflow)')
     .action(async (options) => {
         sysLogger.initSession();
         sysLogger.log(LogLevel.INFO, `初始化对话会话，日志目录: ${sysLogger.getSessionDir()}`);

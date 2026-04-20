@@ -19,6 +19,7 @@ export class Logger {
     private recapMacrosFilePath: string = '';
     private recapPromptsFilePath: string = '';
     private recapDataFilePath: string = '';
+    private browserLogDir: string = '';
 
     /**
      * 初始化当次会话的日志目录 (自动计算序号)
@@ -41,6 +42,11 @@ export class Logger {
         const nextSeq = dirs.length > 0 ? Math.max(...dirs) + 1 : 1;
         this.sessionDir = path.join(dateDir, String(nextSeq).padStart(3, '0'));
         fs.mkdirSync(this.sessionDir, { recursive: true });
+
+        process.env.CCLI_SESSION_DIR = this.sessionDir;
+        
+        this.browserLogDir = this.sessionDir;
+        process.env.CCLI_BROWSER_LOG_DIR = this.browserLogDir;
 
         this.chatFilePath = path.join(this.sessionDir, 'chat.md');
         fs.writeFileSync(this.chatFilePath, `# 会话记录 - ${today.toLocaleString()}\n\n`, 'utf-8');

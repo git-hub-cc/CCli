@@ -13,7 +13,9 @@ export const localConfig = {
     maxErrorLogLength: 300,
     defaultProvider: 'gemini',
     defaultApiKey: '',
-    defaultModel: 'deepseek-r1-0528'
+    defaultModel: 'deepseek-r1-0528',
+    siliconflowApiKey: '',
+    siliconflowModel: 'deepseek-ai/DeepSeek-V2.5'
 };
 
 const parseConfig = (filePath: string) => {
@@ -36,6 +38,12 @@ const parseConfig = (filePath: string) => {
         }
         if (key?.trim() === 'AGENTROUTER_MODEL' && value) {
             localConfig.defaultModel = value;
+        }
+        if (key?.trim() === 'SILICONFLOW_API_KEY' && value) {
+            localConfig.siliconflowApiKey = value;
+        }
+        if (key?.trim() === 'SILICONFLOW_MODEL' && value) {
+            localConfig.siliconflowModel = value;
         }
     });
 };

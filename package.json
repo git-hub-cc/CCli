@@ -14,6 +14,7 @@
     "build": "tsup src/index.ts --format esm --clean",
     "chat": "npm run build && node dist/index.js chat",
     "chat headless": "npm run build && node dist/index.js chat --headless",
+    "chat:siliconflow": "npm run build && node dist/index.js chat --provider siliconflow",
     "chat:agentrouter": "npm run build && node dist/index.js chat --provider agentrouter",
     "chat:doubao": "npm run build && node dist/index.js chat --provider doubao",
     "chat:doubao headless": "npm run build && node dist/index.js chat --headless --provider doubao",
