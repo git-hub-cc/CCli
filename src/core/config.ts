@@ -22,31 +22,50 @@ const parseConfig = (filePath: string) => {
     if (!fs.existsSync(filePath)) return;
     const content = fs.readFileSync(filePath, 'utf-8');
     content.split('\n').forEach(line => {
-        const [key, ...values] = line.split('=');
+        const cleanLine = line.split('#')[0].trim();
+        if (!cleanLine) return;
+
+        const [key, ...values] = cleanLine.split('=');
+        if (!key) return;
+
         const value = values.join('=').trim();
-        if (key?.trim() === 'MAX_HISTORY_ROUNDS' && value) {
+        
+        if (key.trim() === 'MAX_HISTORY_ROUNDS' && value) {
             localConfig.maxHistoryRounds = parseInt(value, 10) || 16;
         }
-        if (key?.trim() === 'MAX_ERROR_LOG_LENGTH' && value) {
+        if (key.trim() === 'MAX_ERROR_LOG_LENGTH' && value) {
             localConfig.maxErrorLogLength = parseInt(value, 10) || 300;
         }
-        if (key?.trim() === 'DEFAULT_PROVIDER' && value) {
+        if (key.trim() === 'DEFAULT_PROVIDER' && value) {
             localConfig.defaultProvider = value.toLowerCase();
         }
-        if (key?.trim() === 'AGENTROUTER_API_KEY' && value) {
+        if (key.trim() === 'AGENTROUTER_API_KEY' && value) {
             localConfig.defaultApiKey = value;
         }
-        if (key?.trim() === 'AGENTROUTER_MODEL' && value) {
+        if (key.trim() === 'AGENTROUTER_MODEL' && value) {
             localConfig.defaultModel = value;
         }
-        if (key?.trim() === 'SILICONFLOW_API_KEY' && value) {
+        if (key.trim() === 'SILICONFLOW_API_KEY' && value) {
             localConfig.siliconflowApiKey = value;
         }
-        if (key?.trim() === 'SILICONFLOW_MODEL' && value) {
+        if (key.trim() === 'SILICONFLOW_MODEL' && value) {
             localConfig.siliconflowModel = value;
         }
     });
 };
+
+export function getMaskedConfig() {
+    const maskStr = (str: string) => {
+        if (!str || str.length <= 8) return '******';
+        return str.substring(0, 3) + '******' + str.substring(str.length - 4);
+    };
+
+    return {
+        ...localConfig,
+        defaultApiKey: localConfig.defaultApiKey ? maskStr(localConfig.defaultApiKey) : '',
+        siliconflowApiKey: localConfig.siliconflowApiKey ? maskStr(localConfig.siliconflowApiKey) : ''
+    };
+}
 
 try {
     // 读取用户全局目录配置作为兜底

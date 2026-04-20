@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { sysLogger, LogLevel } from './core/logger.js';
 import { registerAllActions } from './actions/index.js';
 import { ChatEngine } from './core/chat-engine.js';
+import { getMaskedConfig } from './core/config.js';
 
 const program = new Command();
 
@@ -21,6 +22,9 @@ program
     .action(async (options) => {
         sysLogger.initSession();
         sysLogger.log(LogLevel.INFO, `初始化对话会话，日志目录: ${sysLogger.getSessionDir()}`);
+
+        const safeConfig = getMaskedConfig();
+        sysLogger.log(LogLevel.INFO, `当前加载的环境配置:\n${JSON.stringify(safeConfig, null, 2)}`);
 
         registerAllActions();
 

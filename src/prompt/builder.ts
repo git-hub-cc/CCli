@@ -2,6 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { sysLogger, LogLevel } from '../core/logger.js';
+import { IPromptPart } from './parts/interface.js';
+import { StaticPart } from './parts/static.part.js';
+import { MacroSkillPart } from './parts/macro-skill.part.js';
+import { DynamicScriptPart } from './parts/dynamic-script.part.js';
+import { DataTemplatePart } from './parts/data-template.part.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
@@ -28,7 +33,7 @@ export class PromptBuilder {
             fs.mkdirSync(this.dataDir, { recursive: true });
         }
 
-        const baseFile = path.join(this.dataDir, '00base.md');
+        const baseFile = path.join(this.dataDir, 'index.md');
         
         if (!fs.existsSync(baseFile)) {
             if (fs.existsSync(this.templateDir)) {
@@ -53,7 +58,7 @@ export class PromptBuilder {
             fs.mkdirSync(this.scriptsDir, { recursive: true });
         }
 
-        const baseScriptFile = path.join(this.scriptsDir, '000base.md');
+        const baseScriptFile = path.join(this.scriptsDir, 'index.md');
         
         if (!fs.existsSync(baseScriptFile)) {
             const defaultContent = `# 动态扩展脚本索引\n\n这里存放由大模型自动编写并注册的动态脚本能力清单。\n\n### 可用脚本列表\n- 暂无脚本\n`;
@@ -62,82 +67,21 @@ export class PromptBuilder {
     }
 
     build(): string {
-        const filesToMerge = [
-            '01角色定义.md',
-            '02AI标记语言.md',
-            '03角色微调.md',
-            '04宏技能库.md',
-            '06动态扩展机制.md'
+        const pipeline: IPromptPart[] = [
+            new StaticPart(this.promptsDir, '01角色定义.md'),
+            new StaticPart(this.promptsDir, '02AI标记语言.md'),
+            new MacroSkillPart(this.promptsDir, this.macroDir),
+            new DynamicScriptPart(this.promptsDir, this.scriptsDir),
+            new StaticPart(this.promptsDir, '03角色微调.md'),
+            new DataTemplatePart(this.dataDir)
         ];
 
         let finalPrompt = '';
 
-        for (const file of filesToMerge) {
-            const filePath = path.join(this.promptsDir, file);
-            if (fs.existsSync(filePath)) {
-                finalPrompt += fs.readFileSync(filePath, 'utf-8') + '\n\n';
-            } else {
-                sysLogger.log(LogLevel.WARN, `构建提示词时未找到目标文件: ${file}`);
-            }
+        for (const part of pipeline) {
+            finalPrompt += part.generate();
         }
-
-        finalPrompt += this.buildMacroPrompt();
-        finalPrompt += this.buildScriptsPrompt();
-        finalPrompt += this.buildDataPrompt();
 
         return finalPrompt.trim();
-    }
-
-    private buildMacroPrompt(): string {
-        if (!fs.existsSync(this.macroDir)) return '';
-
-        const skillFiles = fs.readdirSync(this.macroDir).filter(f => f.endsWith('.md'));
-        if (skillFiles.length === 0) return '';
-
-        let macroList = '';
-        let hasValidMacro = false;
-
-        for (const file of skillFiles) {
-            try {
-                const content = fs.readFileSync(path.join(this.macroDir, file), 'utf-8');
-                const nameMatch = content.match(/name:\s*(.+)/);
-                const descMatch = content.match(/description:\s*(.+)/);
-                const reqMatch = content.match(/requires:\s*(.+)/);
-
-                if (nameMatch && nameMatch[1] && descMatch && descMatch[1]) {
-                    const reqText = reqMatch && reqMatch[1] ? ` [前置要求: ${reqMatch[1].trim()}]` : '';
-                    macroList += `- <${nameMatch[1].trim()}>: ${descMatch[1].trim()}${reqText}\n`;
-                    hasValidMacro = true;
-                }
-            } catch (err) {
-            }
-        }
-
-        return hasValidMacro ? macroList + '\n' : '';
-    }
-
-    private buildScriptsPrompt(): string {
-        let content = '';
-        
-        const baseScriptPath = path.join(this.scriptsDir, '000base.md');
-        if (fs.existsSync(baseScriptPath)) {
-            content += fs.readFileSync(baseScriptPath, 'utf-8') + '\n\n';
-        }
-
-        return content;
-    }
-
-    private buildDataPrompt(): string {
-        let content = '';
-        
-        const baseDataPath = path.join(this.dataDir, '00base.md');
-        if (fs.existsSync(baseDataPath)) {
-            content += fs.readFileSync(baseDataPath, 'utf-8') + '\n\n';
-        }
-
-        if (content) {
-            return `\n${content}\n## 完成下面任务\n\n`;
-        }
-        return '';
     }
 }
