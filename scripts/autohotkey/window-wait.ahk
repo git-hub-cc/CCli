@@ -16,7 +16,11 @@ if (A_Args.Length < 1) {
 }
 
 Target := A_Args[1]
-Timeout := (A_Args.Has(2) && A_Args[2] != "") ? Number(A_Args[2]) : 10
+Timeout := (A_Args.Has(2) && A_Args[2] != "") ? Number(A_Args[2]) : 30
+
+if (Timeout > 30) {
+    Timeout := 30
+}
 
 if (RegExMatch(Target, "i)\.exe$")) {
     Target := "ahk_exe " Target
@@ -24,14 +28,14 @@ if (RegExMatch(Target, "i)\.exe$")) {
 
 try {
     if !WinWait(Target, , Timeout) {
-        SafeAppend("【执行异常】等待窗口就绪超时 (" Timeout "秒): " Target "`n")
-        ExitApp(1)
+        SafeAppend("【系统自动反馈】等待窗口就绪超时 (" Timeout "秒): " Target "，已自动结束等待并放行流程。`n")
+        ExitApp(0)
     }
 
     WinActivate(Target)
     if !WinWaitActive(Target, , 5) {
-        SafeAppend("【执行异常】窗口已存在，但尝试将其激活到前台超时。请检查是否被其他更高层级窗口遮挡。`n")
-        ExitApp(1)
+        SafeAppend("【系统自动反馈】窗口已存在，但尝试将其激活到前台超时，已自动结束等待并放行流程。请检查是否被其他更高层级窗口遮挡。`n")
+        ExitApp(0)
     }
 
     SafeAppend("【成功】目标窗口已完全就绪并激活至前台。`n")

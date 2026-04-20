@@ -81,7 +81,7 @@ export class DoubaoWebProvider implements ILLMProvider {
                             if (currentText.length > 0 && currentText === lastText) {
                                 stableCycles++;
                                 // 连续数周期稳定，视为输出完毕
-                                if (stableCycles >= 8) {
+                                if (stableCycles >= 3) {
                                     clearInterval(checkInterval);
                                     resolve(true);
                                 }
@@ -98,7 +98,7 @@ export class DoubaoWebProvider implements ILLMProvider {
 
             let responseText = '';
             try {
-                await this.page.waitForTimeout(1000);
+                await this.page.waitForTimeout(300);
                 await this.page.evaluate(() => navigator.clipboard.writeText(''));
 
                 // 精确划定作用域：直接锁定最后一个 AI 的操作栏

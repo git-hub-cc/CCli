@@ -77,8 +77,8 @@ export class MimoWebProvider implements ILLMProvider {
 
                             if (currentText.length > 0 && currentText === lastText) {
                                 stableCycles++;
-                                // 连续 8 个周期 (4秒) 无变化，视为流式输出完成
-                                if (stableCycles >= 8) {
+                                // 连续 3 个周期 (1.5秒) 无变化，视为流式输出完成
+                                if (stableCycles >= 3) {
                                     clearInterval(checkInterval);
                                     resolve(true);
                                 }
@@ -95,7 +95,7 @@ export class MimoWebProvider implements ILLMProvider {
 
             let responseText = '';
             try {
-                await this.page.waitForTimeout(1000);
+                await this.page.waitForTimeout(300);
                 await this.page.evaluate(() => navigator.clipboard.writeText(''));
 
                 await this.page.bringToFront();
