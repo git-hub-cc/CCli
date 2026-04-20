@@ -17,7 +17,7 @@ export class ActAction extends BaseAction {
         const command = content.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
         const isWindow = attributes['window'] === 'true';
 
-        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}${isWindow ? ' (新独立窗口模式)' : ''}`);
+        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}${isWindow ? ' (新独立后台窗口模式)' : ''}`);
 
         const truncateLog = (log: string) => {
             if (!log) return '';
@@ -30,7 +30,7 @@ export class ActAction extends BaseAction {
             try {
                 let winCmd = '';
                 if (process.platform === 'win32') {
-                    winCmd = `start powershell -NoExit -Command "${command.replace(/"/g, '\\"')}"`;
+                    winCmd = `powershell -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', '${command.replace(/'/g, "''")}' -WindowStyle Minimized"`;
                 } else if (process.platform === 'darwin') {
                     winCmd = `osascript -e 'tell app "Terminal" to do script "${command.replace(/"/g, '\\"')}"'`;
                 } else {
