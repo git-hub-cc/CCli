@@ -11,18 +11,18 @@ export class PromptBuilder {
     private macroDir: string;
     private dataDir: string;
     private templateDir: string;
+    private scriptsDir: string;
 
     constructor() {
         this.promptsDir = path.resolve(PKG_ROOT, 'prompts');
         this.macroDir = path.resolve(PKG_ROOT, 'macros');
         this.templateDir = path.resolve(PKG_ROOT, 'data-templates');
         this.dataDir = path.resolve(process.cwd(), '.ccli', 'data');
+        this.scriptsDir = path.resolve(process.cwd(), '.ccli', 'scripts');
         this.initDataDir();
+        this.initScriptsDir();
     }
 
-    /**
-     * 初始化记忆数据目录，如果 00base.md 不存在则自动生成默认基础文件
-     */
     private initDataDir() {
         if (!fs.existsSync(this.dataDir)) {
             fs.mkdirSync(this.dataDir, { recursive: true });
@@ -48,15 +48,26 @@ export class PromptBuilder {
         }
     }
 
-    /**
-     * 按顺序读取并拼装提示词模块，包含动态注入的录制技能 (Macro)
-     */
+    private initScriptsDir() {
+        if (!fs.existsSync(this.scriptsDir)) {
+            fs.mkdirSync(this.scriptsDir, { recursive: true });
+        }
+
+        const baseScriptFile = path.join(this.scriptsDir, '000base.md');
+        
+        if (!fs.existsSync(baseScriptFile)) {
+            const defaultContent = `# 动态扩展脚本索引\n\n这里存放由大模型自动编写并注册的动态脚本能力清单。\n\n### 可用脚本列表\n- 暂无脚本\n`;
+            fs.writeFileSync(baseScriptFile, defaultContent, 'utf-8');
+        }
+    }
+
     build(): string {
         const filesToMerge = [
             '01角色定义.md',
             '02AI标记语言.md',
             '03角色微调.md',
-            '04宏技能库.md'
+            '04宏技能库.md',
+            '06动态扩展机制.md'
         ];
 
         let finalPrompt = '';
@@ -70,16 +81,13 @@ export class PromptBuilder {
             }
         }
 
-        // 动态注入录制的宏技能（现在仅负责追加动态列表）
         finalPrompt += this.buildMacroPrompt();
+        finalPrompt += this.buildScriptsPrompt();
         finalPrompt += this.buildDataPrompt();
 
         return finalPrompt.trim();
     }
 
-    /**
-     * 扫描 macros/ 目录，将所有合法的宏指令打包进 Prompt
-     */
     private buildMacroPrompt(): string {
         if (!fs.existsSync(this.macroDir)) return '';
 
@@ -92,28 +100,33 @@ export class PromptBuilder {
         for (const file of skillFiles) {
             try {
                 const content = fs.readFileSync(path.join(this.macroDir, file), 'utf-8');
-                // 利用正则简单解析 YAML Meta 头
                 const nameMatch = content.match(/name:\s*(.+)/);
                 const descMatch = content.match(/description:\s*(.+)/);
                 const reqMatch = content.match(/requires:\s*(.+)/);
 
                 if (nameMatch && nameMatch[1] && descMatch && descMatch[1]) {
                     const reqText = reqMatch && reqMatch[1] ? ` [前置要求: ${reqMatch[1].trim()}]` : '';
-                    // 只生成技能列表项，前置的说明头已被独立为 04宏技能库.md
                     macroList += `- <${nameMatch[1].trim()}>: ${descMatch[1].trim()}${reqText}\n`;
                     hasValidMacro = true;
                 }
             } catch (err) {
-                // 静默忽略解析失败的技能文件
             }
         }
 
         return hasValidMacro ? macroList + '\n' : '';
     }
 
-    /**
-     * 扫描 .ccli/data 目录，将基础设定索引作为特定区块注入
-     */
+    private buildScriptsPrompt(): string {
+        let content = '';
+        
+        const baseScriptPath = path.join(this.scriptsDir, '000base.md');
+        if (fs.existsSync(baseScriptPath)) {
+            content += fs.readFileSync(baseScriptPath, 'utf-8') + '\n\n';
+        }
+
+        return content;
+    }
+
     private buildDataPrompt(): string {
         let content = '';
         

@@ -37,6 +37,7 @@ export async function buildRecapContext(
     if (mode === 'macros') {
         content += await appendDirToContext(path.resolve(PKG_ROOT, 'scripts'), '**/*.{md,ahk,js,ts,py}', 'scripts');
         content += await appendDirToContext(path.resolve(PKG_ROOT, 'macros'), '**/*.md', 'macros');
+        content += await appendDirToContext(path.resolve(cwd, '.ccli', 'scripts'), '**/*.{md,ahk,js,ts,py}', '.ccli/scripts');
     } else if (mode === 'data') {
         content += await appendDirToContext(path.resolve(cwd, '.ccli', 'data'), '**/*.md', '.ccli/data');
     } else if (mode === 'prompts') {
