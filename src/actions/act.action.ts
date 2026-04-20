@@ -1,4 +1,6 @@
 import { execa } from 'execa';
+import fs from 'fs';
+import path from 'path';
 import { BaseAction } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { localConfig } from '../core/config.js';
@@ -26,11 +28,28 @@ export class ActAction extends BaseAction {
                 : log;
         };
 
+        let currentConsole = 'powershell';
+        try {
+            const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
+            if (fs.existsSync(envPath)) {
+                const envContent = fs.readFileSync(envPath, 'utf-8');
+                const match = envContent.match(/控制台:\s*(.+)/);
+                if (match && match[1]) {
+                    currentConsole = match[1].trim().toLowerCase();
+                }
+            }
+        } catch (e) {}
+
         if (isWindow) {
             try {
                 let winCmd = '';
                 if (process.platform === 'win32') {
-                    winCmd = `powershell -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', '${command.replace(/'/g, "''")}' -WindowStyle Minimized"`;
+                    if (currentConsole.includes('powershell')) {
+                        const psExe = currentConsole.includes('7') ? 'pwsh' : 'powershell';
+                        winCmd = `${psExe} -Command "Start-Process ${psExe} -ArgumentList '-NoExit', '-Command', '${command.replace(/'/g, "''")}' -WindowStyle Minimized"`;
+                    } else {
+                        winCmd = `cmd.exe /c "start /min cmd.exe /k ${command.replace(/"/g, '\\"')}"`;
+                    }
                 } else if (process.platform === 'darwin') {
                     winCmd = `osascript -e 'tell app "Terminal" to do script "${command.replace(/"/g, '\\"')}"'`;
                 } else {
@@ -51,11 +70,16 @@ export class ActAction extends BaseAction {
             let finalCommand = command;
             let shellOpt: string | boolean = true;
 
-            // 针对 Windows 环境的特殊处理
             if (process.platform === 'win32') {
-                shellOpt = 'powershell';
-                // 静默前置：强制 PowerShell 将 stdout 编码设为 UTF-8，解决跨进程中文乱码问题
-                finalCommand = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${command}`;
+                if (currentConsole.includes('powershell')) {
+                    shellOpt = currentConsole.includes('7') ? 'pwsh' : 'powershell';
+                    // 静默前置：强制 PowerShell 将 stdout 编码设为 UTF-8，解决跨进程中文乱码问题
+                    finalCommand = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${command}`;
+                } else {
+                    shellOpt = 'cmd.exe';
+                    // 静默前置：强制 CMD 切换代码页为 65001 (UTF-8)
+                    finalCommand = `chcp 65001 >nul & ${command}`;
+                }
             }
 
             // 使用特定的 shell 执行命令，合并抓取标准输出与错误输出

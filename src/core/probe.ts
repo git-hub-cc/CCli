@@ -15,6 +15,43 @@ export async function refreshSystemProbe(): Promise<string> {
     const arch = os.arch();
     const cwd = process.cwd();
 
+    let consoleType = 'cmd';
+    if (platform === 'win32') {
+        try {
+            // 通过 WMI 向上追溯真实的祖先进程，跳过自身和 node，穿透 cmd 包装层
+            const traceScript = `
+                $current = Get-CimInstance Win32_Process -Filter "ProcessId = $PID"
+                $id = $current.ParentProcessId
+                $fallback = 'cmd'
+                
+                while($id -gt 0) {
+                    $p = Get-CimInstance Win32_Process -Filter "ProcessId = $id"
+                    if (-not $p) { break }
+                    
+                    $name = $p.Name.ToLower()
+                    
+                    if ($name -match 'pwsh\\.exe') { Write-Output 'powershell7'; exit }
+                    if ($name -match 'powershell\\.exe') { Write-Output 'powershell5'; exit }
+                    if ($name -match 'bash\\.exe|mintty\\.exe') { Write-Output 'bash'; exit }
+                    if ($name -match 'cmd\\.exe') { $fallback = 'cmd' }
+                    
+                    $id = $p.ParentProcessId
+                }
+                Write-Output $fallback
+            `;
+
+            // 随便用一个 shell 去执行这段溯源脚本即可
+            const { stdout } = await execa('powershell', ['-NoProfile', '-Command', traceScript]);
+            if (stdout) {
+                consoleType = stdout.trim();
+            }
+        } catch (e) {
+            consoleType = 'cmd';
+        }
+    } else {
+        consoleType = process.env.SHELL || 'bash';
+    }
+
     let scoopList = '未安装 Scoop 或当前环境无软件列表';
     try {
         const { stdout } = await execa('scoop', ['list'], {
@@ -62,7 +99,7 @@ export async function refreshSystemProbe(): Promise<string> {
         // 忽略执行异常
     }
 
-    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\n\n### 当前工作目录\n${cwd}\n\n### 显示器拓扑与缩放\n${displayInfo}\n\n### 当前运行的窗口\n${windowsList}\n\n### Scoop 软件清单\n${scoopList}\n`;
+    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\n控制台: ${consoleType}\n\n### 当前工作目录\n${cwd}\n\n### 显示器拓扑与缩放\n${displayInfo}\n\n### 当前运行的窗口\n${windowsList}\n\n### Scoop 软件清单\n${scoopList}\n`;
 
     const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
 

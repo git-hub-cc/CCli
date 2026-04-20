@@ -47,8 +47,12 @@ scoop bucket add scoop-proxy-cn https://github.com/lzwme/scoop-proxy-cn
 ### 2. 本地安装
 
 ```bash
-# 设置 npm 淘宝镜像加速安装
+# 设置 npm 淘宝镜像加速安装（可选）
 npm config set registry https://registry.npmmirror.com
+
+# 默认情况下 IDE 可能使用 CMD 执行脚本，这可能导致部分环境不一致（可选）
+# 若下方命令因权限报错（EPERM），请手动执行 `notepad $HOME\.npmrc` 并在文件末尾添加一行：script-shell=pwsh
+npm config set script-shell pwsh
 
 # 安装 Playwright 浏览器内核 (用于驱动 网页)
 npx playwright install chrome
