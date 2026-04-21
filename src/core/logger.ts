@@ -86,7 +86,8 @@ export class Logger {
     }
 
     appendChat(role: LogRole, content: string) {
-        this.appendToFile(this.chatFilePath, role, content);
+        const cleanContent = content.replace(/````/g, '');
+        this.appendToFile(this.chatFilePath, role, cleanContent);
     }
 
     appendSystemPrompt(content: string) {

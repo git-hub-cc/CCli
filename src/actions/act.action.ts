@@ -35,7 +35,14 @@ export class ActAction extends BaseAction {
                 if (process.platform === 'win32') {
                     if (currentConsole.includes('powershell')) {
                         const psExe = currentConsole.includes('7') ? 'pwsh' : 'powershell';
-                        winCmd = `${psExe} -Command "Start-Process ${psExe} -ArgumentList '-NoExit', '-Command', '${command.replace(/'/g, "''")}' -WindowStyle Minimized"`;
+                        let innerCmd = '';
+                        if (/[$;=|&]/.test(command)) {
+                            innerCmd = command;
+                        } else {
+                            innerCmd = `Start-Process ${command}`;
+                        }
+                        const encodedCommand = Buffer.from(innerCmd, 'utf16le').toString('base64');
+                        winCmd = `${psExe} -Command "Start-Process ${psExe} -ArgumentList '-NoExit', '-EncodedCommand', '${encodedCommand}' -WindowStyle Minimized"`;
                     } else {
                         winCmd = `cmd.exe /c "start /min cmd.exe /k ${command.replace(/"/g, '\\"')}"`;
                     }
@@ -119,10 +126,10 @@ export class ActAction extends BaseAction {
 
         } catch (err: any) {
             sysLogger.log(LogLevel.ERROR, `命令执行失败: ${err.shortMessage || err.message}`);
-            
+
             const stdout = err.stdout || '';
             const stderr = err.stderr || err.message;
-            
+
             const truncStdout = truncateLog(stdout);
             const truncStderr = truncateLog(stderr);
 
@@ -133,9 +140,9 @@ export class ActAction extends BaseAction {
             let truncLogContent = `# 执行命令 (失败)\n\`\`\`bash\n${command}\n\`\`\`\n\n`;
             if (truncStdout) truncLogContent += `### 标准输出\n\`\`\`text\n${truncStdout}\n\`\`\`\n\n`;
             if (truncStderr) truncLogContent += `### 标准错误\n\`\`\`text\n${truncStderr}\n\`\`\`\n\n`;
-            
+
             const logFile = sysLogger.saveTextAsAttachment(truncLogContent, fullLogContent);
-            
+
             let errorFeedback = `终端命令异常退出:\n${truncStderr}`;
             if (logFile) {
                 errorFeedback += `\n\n日志归档： [${logFile.fileName}](${logFile.relativePath})`;
