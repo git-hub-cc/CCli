@@ -1,5 +1,7 @@
 import chalk from 'chalk';
 import { input } from '@inquirer/prompts';
+import fs from 'fs';
+import path from 'path';
 import { sysLogger, LogLevel } from './logger.js';
 import { refreshSystemProbe } from './probe.js';
 import { PromptBuilder } from '../prompt/builder.js';
@@ -10,10 +12,13 @@ import { ContextManager } from './context-manager.js';
 import { SystemInterceptor } from '../parser/interceptor.js';
 import { localConfig } from './config.js';
 import type { ILLMProvider } from '../llm/interface.js';
+import { spawnDetachedWindow } from './utils.js';
 
 export interface ChatEngineOptions {
     provider: string;
     headless: boolean;
+    recapMode?: string;
+    historyFile?: string;
 }
 
 export class ChatEngine {
@@ -40,6 +45,11 @@ export class ChatEngine {
         process.on('SIGINT', () => this.gracefulExit());
 
         try {
+            if (this.options.recapMode && this.options.historyFile) {
+                await this.runRecapMode();
+                return;
+            }
+
             await refreshSystemProbe();
             const builder = new PromptBuilder();
             let systemPrompt = builder.build();
@@ -70,7 +80,30 @@ export class ChatEngine {
 
                 if (text.toLowerCase().startsWith('/recap')) {
                     sysLogger.appendChat('Raw_User', text);
-                    await RecapDispatcher.dispatch(text, this.provider, this.contextManager.getHistory());
+                    
+                    const history = this.contextManager.getHistory();
+                    const timestamp = Date.now();
+                    const tempFile = path.resolve(process.cwd(), '.ccli', 'data', `temp_history_${timestamp}.json`);
+                    
+                    if (!fs.existsSync(path.dirname(tempFile))) {
+                        fs.mkdirSync(path.dirname(tempFile), { recursive: true });
+                    }
+                    fs.writeFileSync(tempFile, JSON.stringify(history, null, 2), 'utf-8');
+
+                    let mode = 'macros';
+                    if (text.toLowerCase().includes('data')) mode = 'data';
+                    if (text.toLowerCase().includes('prompts')) mode = 'prompts';
+
+                    const providerOpt = this.options.provider ? `-p ${this.options.provider}` : '';
+                    const cmd = `ccli chat --recap-mode ${mode} --history-file "${tempFile}" ${providerOpt}`;
+                    
+                    sysLogger.log(LogLevel.INFO, `正在独立窗口启动复盘进程...`);
+                    try {
+                        spawnDetachedWindow(cmd);
+                        sysLogger.log(LogLevel.SUCCESS, `复盘进程已分离启动，您可以继续在当前窗口交互。`);
+                    } catch (e: any) {
+                        sysLogger.log(LogLevel.ERROR, `分离启动失败: ${e.message}`);
+                    }
                     continue;
                 }
 
@@ -156,6 +189,29 @@ export class ChatEngine {
             }
         } finally {
             await this.gracefulExit();
+        }
+    }
+
+    private async runRecapMode() {
+        try {
+            sysLogger.log(LogLevel.INFO, `正在初始化复盘专享驱动...`);
+            await this.provider.init(this.options.headless);
+
+            let history = [];
+            if (fs.existsSync(this.options.historyFile!)) {
+                history = JSON.parse(fs.readFileSync(this.options.historyFile!, 'utf-8'));
+                fs.unlinkSync(this.options.historyFile!);
+            }
+
+            const { BaseRecapMode } = await import('../recap/base.js');
+            await new BaseRecapMode(this.options.recapMode as any).execute(this.provider, history);
+            
+            await input({ message: chalk.yellow('复盘执行完毕，按回车键关闭窗口...') });
+        } catch (err: any) {
+            sysLogger.log(LogLevel.ERROR, `复盘模式执行失败: ${err.message}`);
+            const crashLogPath = path.resolve(process.cwd(), '.ccli', 'logs', 'recap-crash.log');
+            fs.appendFileSync(crashLogPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+            await input({ message: chalk.red('复盘执行发生异常，请查阅日志。按回车键退出...') });
         }
     }
 }

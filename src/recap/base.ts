@@ -64,6 +64,17 @@ export class BaseRecapMode {
 
         } catch (err: any) {
             sysLogger.log(LogLevel.ERROR, `复盘分析失败: ${err.message}`);
+            
+            // 写入专门的崩溃日志，防静默闪退追踪使用
+            try {
+                const crashLogPath = path.resolve(process.cwd(), '.ccli', 'logs', 'recap-crash.log');
+                if (!fs.existsSync(path.dirname(crashLogPath))) {
+                    fs.mkdirSync(path.dirname(crashLogPath), { recursive: true });
+                }
+                fs.appendFileSync(crashLogPath, `[${new Date().toISOString()}] [BaseRecapMode] ${err.stack || err.message}\n`);
+            } catch (logErr) {
+                // 静默忽略日志写入失败
+            }
         }
     }
 

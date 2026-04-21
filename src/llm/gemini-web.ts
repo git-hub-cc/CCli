@@ -1,4 +1,4 @@
-import { chromium, type BrowserContext, type Page } from 'playwright';
+import { type BrowserContext, type Page, type Browser } from 'playwright';
 import path from 'path';
 import fs from 'fs';
 import ora from 'ora';
@@ -6,11 +6,14 @@ import os from 'os';
 import type { ILLMProvider, ChatMessage } from './interface.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { addGridToImage } from '../core/image-processor.js';
+import { BrowserDaemon } from './browser-daemon.js';
 
-const AUTH_DIR = path.join(os.homedir(), '.ccli', 'profiles','gemini');
+const AUTH_DIR = path.join(os.homedir(), '.ccli', 'profiles', 'gemini');
+const CDP_PORT = 9226;
 
 export class GeminiWebProvider implements ILLMProvider {
     name = 'GeminiWeb';
+    private browser: Browser | null = null;
     private context: BrowserContext | null = null;
     private page: Page | null = null;
 
@@ -18,15 +21,10 @@ export class GeminiWebProvider implements ILLMProvider {
         const isFirstTime = !fs.existsSync(AUTH_DIR);
         const finalHeadless = isFirstTime ? false : headless;
 
-        this.context = await chromium.launchPersistentContext(AUTH_DIR, {
-            headless: finalHeadless,
-            viewport: { width: 1280, height: 720 },
-            channel: 'chrome',
-            args: ['--disable-blink-features=AutomationControlled'],
-            permissions: ['clipboard-read', 'clipboard-write'],
-        });
-
-        this.page = this.context.pages()[0] || await this.context.newPage();
+        this.browser = await BrowserDaemon.connect('Gemini', CDP_PORT, AUTH_DIR, finalHeadless);
+        this.context = this.browser.contexts()[0];
+        
+        this.page = await this.context.newPage();
 
         await this.page.route('**/*.{css,woff2}', route => route.abort());
         await this.page.goto('https://gemini.google.com/app', { waitUntil: 'domcontentloaded' });
@@ -52,22 +50,18 @@ export class GeminiWebProvider implements ILLMProvider {
             const responseLocator = this.page.locator('message-content, .message-content, model-response');
             const initialCount = await responseLocator.count();
 
-            // [修改] 增加精确特征与 .last() 后缀，解决严格模式下捕获到历史侧边栏而报错的问题
             const sendButton = this.page.locator('button[aria-label*="Send message" i], button.send-button').last();
             await sendButton.waitFor({ state: 'visible' });
             await sendButton.click();
 
-            // 1. 动态等待新的消息块被挂载到 DOM 中
             try {
                 await this.page.waitForFunction((initial) => {
                     const elements = document.querySelectorAll('message-content, .message-content, model-response');
                     return elements.length > initial;
                 }, initialCount, { timeout: 30000 });
             } catch (e) {
-                // 忽略超时，交由后续逻辑处理兜底
             }
 
-            // 2. 根据页面内容动态感知流式输出状态，替代固定的时间轮询
             try {
                 await this.page.waitForFunction(() => {
                     return new Promise((resolve) => {
@@ -112,18 +106,16 @@ export class GeminiWebProvider implements ILLMProvider {
             try {
                 await this.page.evaluate(() => navigator.clipboard.writeText(''));
 
-                // 【修复核心1】直接锁定最新的 model-response 标签作为容器，保证肯定能包裹底部的 copy 按钮
                 const latestMessageBlock = this.page.locator('model-response').last();
                 const copyBtn = latestMessageBlock.locator('button[aria-label*="Copy" i], button[aria-label*="复制" i], button[mattooltip*="Copy" i], button[mattooltip*="复制" i]').last();
 
-                // 【修复核心2】强制页面聚焦到前台，触发hover，防止剪贴板API因非活跃窗口被拦截或按钮被隐藏
                 await this.page.bringToFront();
                 await latestMessageBlock.hover();
 
                 await copyBtn.waitFor({ state: 'attached', timeout: 5000 });
-                await copyBtn.scrollIntoViewIfNeeded(); // 确保元素在可视区域
+                await copyBtn.scrollIntoViewIfNeeded();
                 await copyBtn.click({ force: true });
-                await this.page.waitForTimeout(800); // 给剪贴板写入稍微长一点的缓冲时间
+                await this.page.waitForTimeout(800);
 
                 const markdownText = await this.page.evaluate(() => navigator.clipboard.readText());
 
@@ -133,7 +125,6 @@ export class GeminiWebProvider implements ILLMProvider {
                     throw new Error("成功点击但剪贴板内容为空");
                 }
             } catch (copyError: any) {
-                // 【修复核心3】抛出明确的控制台警告，让你知道为什么退阶到了纯文本
                 sysLogger.log(LogLevel.WARN, `UI提取 Markdown 格式失败 (${copyError.message})，已回退至纯文本模式。`);
                 responseText = fallbackText ? fallbackText : '未能提取到回复内容（可能是页面结构改变或未生成完整）';
             }
@@ -149,9 +140,6 @@ export class GeminiWebProvider implements ILLMProvider {
         }
     }
 
-    /**
-     * 重置会话状态：清空页面 DOM 和历史上下文
-     */
     async resetSession(): Promise<void> {
         if (!this.page) throw new Error('浏览器尚未初始化');
         sysLogger.log(LogLevel.INFO, '正在物理重置 Gemini 网页会话...');
@@ -164,16 +152,12 @@ export class GeminiWebProvider implements ILLMProvider {
         }
     }
 
-    /**
-     * 触发界面的文件上传按钮进行真实的物理挂载
-     */
     async uploadFile(absolutePath: string, useGrid: boolean = true): Promise<void> {
         if (!this.page) throw new Error('浏览器尚未初始化');
 
         sysLogger.log(LogLevel.INFO, `正在将文件注入 Gemini 环境: ${path.basename(absolutePath)} (网格: ${useGrid})`);
 
         try {
-            // 根据参数决定是否调用图像网格处理逻辑
             const processedPath = useGrid
                 ? await addGridToImage(absolutePath, path.dirname(absolutePath))
                 : absolutePath;
@@ -201,6 +185,5 @@ export class GeminiWebProvider implements ILLMProvider {
 
     async close(): Promise<void> {
         if (this.page) await this.page.close();
-        if (this.context) await this.context.close();
     }
 }

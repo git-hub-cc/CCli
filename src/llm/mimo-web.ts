@@ -1,4 +1,4 @@
-import { chromium, type BrowserContext, type Page } from 'playwright';
+import { type BrowserContext, type Page, type Browser } from 'playwright';
 import path from 'path';
 import fs from 'fs';
 import ora from 'ora';
@@ -6,11 +6,14 @@ import os from 'os';
 import type { ILLMProvider, ChatMessage } from './interface.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { addGridToImage } from '../core/image-processor.js';
+import { BrowserDaemon } from './browser-daemon.js';
 
 const AUTH_DIR = path.join(os.homedir(), '.ccli', 'profiles', 'mimo');
+const CDP_PORT = 9228;
 
 export class MimoWebProvider implements ILLMProvider {
     name = 'MimoWeb';
+    private browser: Browser | null = null;
     private context: BrowserContext | null = null;
     private page: Page | null = null;
 
@@ -18,25 +21,15 @@ export class MimoWebProvider implements ILLMProvider {
         const isFirstTime = !fs.existsSync(AUTH_DIR);
         const finalHeadless = isFirstTime ? false : headless;
 
-        this.context = await chromium.launchPersistentContext(AUTH_DIR, {
-            headless: finalHeadless,
-            viewport: { width: 1280, height: 720 },
-            channel: 'chrome',
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            args: [
-                '--disable-blink-features=AutomationControlled',
-                '--disable-infobars'
-            ],
-            ignoreDefaultArgs: ['--enable-automation'],
-            permissions: ['clipboard-read', 'clipboard-write'],
-        });
+        this.browser = await BrowserDaemon.connect('Mimo', CDP_PORT, AUTH_DIR, finalHeadless);
+        this.context = this.browser.contexts()[0];
+        
+        this.page = await this.context.newPage();
 
-        await this.context.addInitScript(() => {
+        await this.page.addInitScript(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
             Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
         });
-
-        this.page = this.context.pages()[0] || await this.context.newPage();
 
         await this.page.goto('https://aistudio.xiaomimimo.com/#/c', { waitUntil: 'domcontentloaded' });
 
@@ -222,6 +215,5 @@ export class MimoWebProvider implements ILLMProvider {
 
     async close(): Promise<void> {
         if (this.page) await this.page.close();
-        if (this.context) await this.context.close();
     }
 }

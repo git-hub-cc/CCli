@@ -8,7 +8,7 @@ export class RecapDispatcher {
      */
     static async dispatch(command: string, provider: ILLMProvider, chatHistory: { role: string, content: string }[]) {
         const cmd = command.trim().toLowerCase();
-        
+
         if (cmd === '/recap data') {
             sysLogger.appendDataLog('User', cmd);
             await new BaseRecapMode('data').execute(provider, chatHistory);

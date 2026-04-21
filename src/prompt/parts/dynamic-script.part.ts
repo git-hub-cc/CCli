@@ -15,11 +15,6 @@ export class DynamicScriptPart implements IPromptPart {
         } else {
             sysLogger.log(LogLevel.WARN, `构建提示词时未找到目标文件: 06动态扩展机制.md`);
         }
-        
-        const baseScriptPath = path.join(this.scriptsDir, 'index.md');
-        if (fs.existsSync(baseScriptPath)) {
-            content += fs.readFileSync(baseScriptPath, 'utf-8') + '\n\n';
-        }
 
         return content;
     }
