@@ -70,7 +70,7 @@ export class DoubaoWebProvider implements ILLMProvider {
 
                             if (currentText.length > 0 && currentText === lastText) {
                                 stableCycles++;
-                                if (stableCycles >= 3) {
+                                if (stableCycles >= 4) {
                                     clearInterval(checkInterval);
                                     resolve(true);
                                 }

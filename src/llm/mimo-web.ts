@@ -70,8 +70,8 @@ export class MimoWebProvider implements ILLMProvider {
 
                             if (currentText.length > 0 && currentText === lastText) {
                                 stableCycles++;
-                                // 连续 3 个周期 (1.5秒) 无变化，视为流式输出完成
-                                if (stableCycles >= 3) {
+                                // 连续 4 个周期 (2秒) 无变化，视为流式输出完成
+                                if (stableCycles >= 4) {
                                     clearInterval(checkInterval);
                                     resolve(true);
                                 }

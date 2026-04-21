@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getEncoding } from 'js-tiktoken';
 import { localConfig } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,15 +13,58 @@ export interface ChatMessage {
 }
 
 export class ContextManager {
+    public static activeInstance: ContextManager | null = null;
     private chatHistory: ChatMessage[] = [];
     private cachedHintPrompt: string = '';
+    public currentTotalTokens: number = 0;
+    private encoder: any;
+    private baseTokens: number = 0;
+    private extraTokens: number = 0;
 
     constructor() {
+        ContextManager.activeInstance = this;
         this.loadHintPrompt();
+        try {
+            this.encoder = getEncoding(localConfig.tokenizerName as any || 'o200k_base');
+        } catch (e) {
+            this.encoder = getEncoding('cl100k_base');
+        }
+    }
+
+    private calculateTokens(text: string): number {
+        if (!text) return 0;
+        try {
+            return this.encoder.encode(text).length;
+        } catch (e) {
+            const chinese = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+            const others = text.length - chinese;
+            return chinese + Math.ceil(others / 4);
+        }
+    }
+
+    public calculateRawTokens(text: string): number {
+        return this.calculateTokens(text);
+    }
+
+    public setBaseTokens(tokens: number) {
+        this.baseTokens = tokens;
+        this.recountTokens();
+    }
+
+    public addExtraTokens(tokens: number) {
+        this.extraTokens += tokens;
+        this.recountTokens();
+    }
+
+    private recountTokens() {
+        this.currentTotalTokens = this.baseTokens + this.extraTokens;
+        for (const msg of this.chatHistory) {
+            this.currentTotalTokens += this.calculateTokens(msg.content);
+        }
     }
 
     private loadHintPrompt() {
-        this.cachedHintPrompt = '【系统隐式提示】当前会话历史较长。如果你认为存在干扰或即将达到长度上限，请在本次回复的首行使用 <context action="trim|clear" keep_last="n" /> 标签清理历史。如果无需清理，请正常回答。';
+        this.cachedHintPrompt = '【系统隐式提示】当前上下文 Token 占用已达预警阈值。为了防止截断或遗忘，请在本次回复的首行使用 <context action="trim|clear" keep_last="n" /> 标签清理历史。如果无需清理，请正常回答。';
         try {
             const hintPromptPath = path.resolve(PKG_ROOT, 'prompts', '05新会话模式.md');
             this.cachedHintPrompt = fs.readFileSync(hintPromptPath, 'utf-8').trim();
@@ -37,10 +81,16 @@ export class ContextManager {
 
     addMessage(role: string, content: string) {
         this.chatHistory.push({ role, content });
+        this.currentTotalTokens += this.calculateTokens(content);
     }
 
     popMessage(): ChatMessage | undefined {
-        return this.chatHistory.pop();
+        const msg = this.chatHistory.pop();
+        if (msg) {
+            this.currentTotalTokens -= this.calculateTokens(msg.content);
+            if (this.currentTotalTokens < 0) this.currentTotalTokens = 0;
+        }
+        return msg;
     }
 
     getLastMessage(): ChatMessage | undefined {
@@ -49,7 +99,9 @@ export class ContextManager {
 
     getPromptWithHints(text: string): string {
         let promptWithHint = text;
-        if (this.chatHistory.length >= localConfig.maxHistoryRounds) {
+        const tokenUsageRatio = this.currentTotalTokens / localConfig.modelMaxTokens;
+        
+        if (tokenUsageRatio >= localConfig.tokenThresholdPercent) {
             promptWithHint += `\n\n${this.cachedHintPrompt}`;
         }
         return promptWithHint;
@@ -59,6 +111,7 @@ export class ContextManager {
         if (action === 'clear') {
             const lastUser = this.chatHistory.pop();
             this.chatHistory.length = 0;
+            this.extraTokens = 0;
             if (lastUser) this.chatHistory.push(lastUser);
         } else if (action === 'trim') {
             const keepCount = (keepLast * 2) + 1;
@@ -66,6 +119,7 @@ export class ContextManager {
                 this.chatHistory.splice(0, this.chatHistory.length - keepCount);
             }
         }
+        this.recountTokens();
     }
 
     formatHistoryString(): string {

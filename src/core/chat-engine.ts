@@ -62,10 +62,25 @@ export class ChatEngine {
             const maxAgentDepth = 15;
 
             while (true) {
+                const tokens = this.contextManager.currentTotalTokens;
+                const max = localConfig.modelMaxTokens;
+                const ratio = tokens / max;
+                const kTokens = (tokens / 1000).toFixed(1) + 'k';
+                const kMax = (max / 1000).toFixed(0) + 'k';
+
+                let tokenPrefix = `[${kTokens}/${kMax}]`;
+                if (ratio >= localConfig.tokenThresholdPercent) {
+                    tokenPrefix = chalk.red(`${tokenPrefix} ⚠ 阈值预警`);
+                } else if (ratio >= localConfig.tokenThresholdPercent * 0.75) {
+                    tokenPrefix = chalk.yellow(tokenPrefix);
+                } else {
+                    tokenPrefix = chalk.green(tokenPrefix);
+                }
+
                 let userInput = '';
                 try {
                     userInput = await input({
-                        message: chalk.cyan('You >'),
+                        message: `${tokenPrefix} ${chalk.cyan('You >')}`,
                         theme: { prefix: '' }
                     });
                 } catch (err: any) {
@@ -80,11 +95,11 @@ export class ChatEngine {
 
                 if (text.toLowerCase().startsWith('/recap')) {
                     sysLogger.appendChat('Raw_User', text);
-                    
+
                     const history = this.contextManager.getHistory();
                     const timestamp = Date.now();
                     const tempFile = path.resolve(process.cwd(), '.ccli', 'data', `temp_history_${timestamp}.json`);
-                    
+
                     if (!fs.existsSync(path.dirname(tempFile))) {
                         fs.mkdirSync(path.dirname(tempFile), { recursive: true });
                     }
@@ -96,7 +111,7 @@ export class ChatEngine {
 
                     const providerOpt = this.options.provider ? `-p ${this.options.provider}` : '';
                     const cmd = `ccli chat --recap-mode ${mode} --history-file "${tempFile}" ${providerOpt}`;
-                    
+
                     sysLogger.log(LogLevel.INFO, `正在独立窗口启动复盘进程...`);
                     try {
                         spawnDetachedWindow(cmd);
@@ -113,6 +128,11 @@ export class ChatEngine {
                     break;
                 }
                 if (!text) continue;
+
+                if (isFirstTurn) {
+                    const sysTokens = this.contextManager.calculateRawTokens(systemPrompt);
+                    this.contextManager.setBaseTokens(sysTokens);
+                }
 
                 const promptWithHint = this.contextManager.getPromptWithHints(text);
                 this.contextManager.addMessage('User', text);
@@ -147,11 +167,14 @@ export class ChatEngine {
                     if (interceptResult.needsRestartSession) {
                         sysLogger.log(LogLevel.INFO, `执行上下文重组 (动作: ${interceptResult.restartAction}, 保留: ${interceptResult.restartKeepLast} 轮)...`);
                         this.contextManager.popMessage();
-                        
+
                         this.contextManager.executeAction(interceptResult.restartAction, interceptResult.restartKeepLast);
 
                         await this.provider.resetSession();
                         systemPrompt = builder.build();
+
+                        const newSysTokens = this.contextManager.calculateRawTokens(systemPrompt);
+                        this.contextManager.setBaseTokens(newSysTokens);
 
                         sysLogger.appendSystemPrompt(systemPrompt);
                         sysLogger.appendChat('Prompt_Context', '> 💾 已归档至: [prompts.md](prompts.md)');
@@ -169,7 +192,7 @@ export class ChatEngine {
                     if (interceptResult.cleanFeedbacks.length > 0) {
                         const feedbackStr = interceptResult.cleanFeedbacks.join('\n\n');
                         currentAskPrompt = `${feedbackStr}\n\n请根据上述执行结果继续思考或操作。若任务完成，请直接输出纯文本回答。`;
-                        
+
                         const displayFeedbacks = interceptResult.cleanFeedbacks.map(fb => {
                             if (fb.includes('全量日志归档：')) {
                                 const match = fb.match(/((?:全量)?日志归档：.*(?:\n|$))+/);
@@ -214,7 +237,7 @@ export class ChatEngine {
 
             const { BaseRecapMode } = await import('../recap/base.js');
             await new BaseRecapMode(this.options.recapMode as any).execute(this.provider, history);
-            
+
             await input({ message: chalk.yellow('复盘执行完毕，按回车键关闭窗口...') });
         } catch (err: any) {
             sysLogger.log(LogLevel.ERROR, `复盘模式执行失败: ${err.message}`);

@@ -3,6 +3,7 @@ import path from 'path';
 import { BaseAction } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import type { ILLMProvider } from '../llm/interface.js';
+import { ContextManager } from '../core/context-manager.js';
 
 /**
  * 处理 <upload> 标签：指示系统提取本地文件并挂载到下一次对话上下文中
@@ -32,6 +33,17 @@ export class UploadAction extends BaseAction {
             }
 
             await provider.uploadFile(absolutePath, grid);
+
+            try {
+                const ext = path.extname(absolutePath).toLowerCase();
+                const textExts = ['.ts', '.js', '.json', '.md', '.txt', '.css', '.html', '.config', '.ahk', '.py', '.java', '.c', '.cpp', '.rs', '.go', '.xml', '.yml', '.yaml', '.sh', '.bat', '.ps1', '.env'];
+                if (textExts.includes(ext) && ContextManager.activeInstance) {
+                    const fileContent = fs.readFileSync(absolutePath, 'utf-8');
+                    const fileTokens = ContextManager.activeInstance.calculateRawTokens(fileContent);
+                    ContextManager.activeInstance.addExtraTokens(fileTokens);
+                }
+            } catch (e) {
+            }
 
             let feedback = `【系统自动反馈：文件挂载成功】\n文件 \`${absolutePath}\` 已经成功挂载到当前对话框中！请直接分析该文件内容并得出结论。`;
 

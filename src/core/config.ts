@@ -9,8 +9,11 @@ export interface CcliConfig {
 }
 
 export const localConfig = {
-    maxHistoryRounds: 16,
     maxErrorLogLength: 300,
+    modelMaxTokens: 100000,
+    tokenThresholdPercent: 0.80,
+    tokenizerName: 'o200k_base',
+    modelId: 'gpt-4o',
     defaultProvider: 'gemini',
     defaultApiKey: '',
     defaultModel: 'deepseek-r1-0528',
@@ -30,11 +33,20 @@ const parseConfig = (filePath: string) => {
 
         const value = values.join('=').trim();
         
-        if (key.trim() === 'MAX_HISTORY_ROUNDS' && value) {
-            localConfig.maxHistoryRounds = parseInt(value, 10) || 16;
-        }
         if (key.trim() === 'MAX_ERROR_LOG_LENGTH' && value) {
             localConfig.maxErrorLogLength = parseInt(value, 10) || 300;
+        }
+        if (key.trim() === 'MODEL_MAX_TOKENS' && value) {
+            localConfig.modelMaxTokens = parseInt(value, 10) || 100000;
+        }
+        if (key.trim() === 'TOKEN_THRESHOLD_PERCENT' && value) {
+            localConfig.tokenThresholdPercent = parseFloat(value) || 0.80;
+        }
+        if (key.trim() === 'TOKENIZER_NAME' && value) {
+            localConfig.tokenizerName = value;
+        }
+        if (key.trim() === 'MODEL_ID' && value) {
+            localConfig.modelId = value;
         }
         if (key.trim() === 'DEFAULT_PROVIDER' && value) {
             localConfig.defaultProvider = value.toLowerCase();
