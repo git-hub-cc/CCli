@@ -90,7 +90,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     target = sys.argv[1]
-    output_path = "./screenshot.png"
+    output_path = "./.ccli/image/screenshot.png"
 
     # 确保输出目录存在
     output_dir = os.path.dirname(os.path.abspath(output_path))

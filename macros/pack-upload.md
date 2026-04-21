@@ -1,6 +1,7 @@
 ---
 name: pack-upload
-description: 挂载多个文件或多个目录。支持自动过滤 .gitignore 屏蔽项与二进制文件，自动合并所有纯文本内容并挂载。（参数：多个文件或多个目录）
+description: 自动过滤屏蔽项并合并打包挂载文本
+params: 文件或目录路径，多个用逗号分隔
 ---
 
 <act>python ./scripts/python/pack.py "{0}"</act>

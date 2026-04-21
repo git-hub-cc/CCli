@@ -1,7 +1,8 @@
 ---
 name: keyboard-type
-description: 模拟键盘输入纯文本或特殊按键组合（参数：需要输入的内容，支持诸如 ^c、{Enter} 等 AHK 按键表达式）
-requires: 目标窗口必须处于激活状态，且目标输入框必须已经获取到光标焦点（通常需要先搭配 click 技能点击输入框）
+description: 模拟键盘输入
+params: 文本或AHK按键表达式如^c/{Enter}
+requires: 目标窗口须激活且输入框已获焦点(可先用click)
 ---
 
 <act>autohotkey ./scripts/autohotkey/keyboard-type.ahk "{1}"</act>

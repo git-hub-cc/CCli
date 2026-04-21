@@ -1,6 +1,7 @@
 ---
 name: window-wait
-description: 挂起流程并等待目标窗口加载就绪（参数：窗口标题或进程名, 超时时间[可选 最大30秒]）
+description: 等待目标窗口加载就绪并激活
+params: 标题/进程, 超时秒数[最大30]
 ---
 
 <act>autohotkey ./scripts/autohotkey/window-wait.ahk "{1}" "{2}"</act>
