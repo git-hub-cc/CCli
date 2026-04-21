@@ -73,27 +73,50 @@ export class ActAction extends BaseAction {
             if (process.platform === 'win32') {
                 if (currentConsole.includes('powershell')) {
                     shellOpt = currentConsole.includes('7') ? 'pwsh' : 'powershell';
-                    // 静默前置：强制 PowerShell 将 stdout 编码设为 UTF-8，解决跨进程中文乱码问题
                     finalCommand = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${command}`;
                 } else {
                     shellOpt = 'cmd.exe';
-                    // 静默前置：强制 CMD 切换代码页为 65001 (UTF-8)
                     finalCommand = `chcp 65001 >nul & ${command}`;
                 }
             }
 
-            // 使用特定的 shell 执行命令，合并抓取标准输出与错误输出
-            const { stdout, stderr } = await execa(finalCommand, { shell: shellOpt });
+            const childProcess = execa(finalCommand, { shell: shellOpt });
+            childProcess.stdout?.pipe(process.stdout);
+            childProcess.stderr?.pipe(process.stderr);
+
+            const { stdout, stderr } = await childProcess;
+
+            const truncStdout = truncateLog(stdout);
+            const truncStderr = truncateLog(stderr);
+
+            let fullLogContent = `# 执行命令\n\`\`\`bash\n${command}\n\`\`\`\n\n`;
+            if (stdout) fullLogContent += `### 标准输出\n\`\`\`text\n${stdout}\n\`\`\`\n\n`;
+            if (stderr) fullLogContent += `### 标准错误\n\`\`\`text\n${stderr}\n\`\`\`\n\n`;
+            if (!stdout && !stderr) fullLogContent += `命令执行成功，无任何控制台输出。\n`;
+
+            let truncLogContent = `# 执行命令\n\`\`\`bash\n${command}\n\`\`\`\n\n`;
+            if (truncStdout) truncLogContent += `### 标准输出\n\`\`\`text\n${truncStdout}\n\`\`\`\n\n`;
+            if (truncStderr) truncLogContent += `### 标准错误\n\`\`\`text\n${truncStderr}\n\`\`\`\n\n`;
+            if (!stdout && !stderr) truncLogContent += `命令执行成功，无任何控制台输出。\n`;
+
+            const logFile = sysLogger.saveTextAsAttachment(truncLogContent, fullLogContent);
 
             let feedback = `【系统自动反馈：命令执行结果】\n`;
-            if (stdout) {
-                feedback += `[标准输出]\n${truncateLog(stdout)}\n`;
+            if (truncStdout) {
+                feedback += `[标准输出]\n${truncStdout}\n`;
             }
-            if (stderr) {
-                feedback += `[标准错误]\n${truncateLog(stderr)}\n`;
+            if (truncStderr) {
+                feedback += `[标准错误]\n${truncStderr}\n`;
             }
             if (!stdout && !stderr) {
-                feedback += `命令执行成功，无任何控制台输出。`;
+                feedback += `命令执行成功，无任何控制台输出。\n`;
+            }
+
+            if (logFile) {
+                feedback += `\n日志归档： [${logFile.fileName}](${logFile.relativePath})`;
+                if (logFile.fullRelativePath) {
+                    feedback += `\n全量日志归档：[${logFile.fileName}](${logFile.fullRelativePath})`;
+                }
             }
 
             sysLogger.log(LogLevel.SUCCESS, `命令执行完毕`);
@@ -101,8 +124,31 @@ export class ActAction extends BaseAction {
 
         } catch (err: any) {
             sysLogger.log(LogLevel.ERROR, `命令执行失败: ${err.shortMessage || err.message}`);
-            const errorLog = err.stderr || err.message;
-            throw new Error(`终端命令异常退出:\n${truncateLog(errorLog)}`);
+            
+            const stdout = err.stdout || '';
+            const stderr = err.stderr || err.message;
+            
+            const truncStdout = truncateLog(stdout);
+            const truncStderr = truncateLog(stderr);
+
+            let fullLogContent = `# 执行命令 (失败)\n\`\`\`bash\n${command}\n\`\`\`\n\n`;
+            if (stdout) fullLogContent += `### 标准输出\n\`\`\`text\n${stdout}\n\`\`\`\n\n`;
+            if (stderr) fullLogContent += `### 标准错误\n\`\`\`text\n${stderr}\n\`\`\`\n\n`;
+
+            let truncLogContent = `# 执行命令 (失败)\n\`\`\`bash\n${command}\n\`\`\`\n\n`;
+            if (truncStdout) truncLogContent += `### 标准输出\n\`\`\`text\n${truncStdout}\n\`\`\`\n\n`;
+            if (truncStderr) truncLogContent += `### 标准错误\n\`\`\`text\n${truncStderr}\n\`\`\`\n\n`;
+            
+            const logFile = sysLogger.saveTextAsAttachment(truncLogContent, fullLogContent);
+            
+            let errorFeedback = `终端命令异常退出:\n${truncStderr}`;
+            if (logFile) {
+                errorFeedback += `\n\n日志归档： [${logFile.fileName}](${logFile.relativePath})`;
+                if (logFile.fullRelativePath) {
+                    errorFeedback += `\n全量日志归档：[${logFile.fileName}](${logFile.fullRelativePath})`;
+                }
+            }
+            throw new Error(errorFeedback);
         }
     }
 }

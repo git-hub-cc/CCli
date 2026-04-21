@@ -169,7 +169,16 @@ export class ChatEngine {
                     if (interceptResult.cleanFeedbacks.length > 0) {
                         const feedbackStr = interceptResult.cleanFeedbacks.join('\n\n');
                         currentAskPrompt = `${feedbackStr}\n\n请根据上述执行结果继续思考或操作。若任务完成，请直接输出纯文本回答。`;
-                        sysLogger.appendChat('Tool_Feedback', currentAskPrompt);
+                        
+                        const displayFeedbacks = interceptResult.cleanFeedbacks.map(fb => {
+                            if (fb.includes('全量日志归档：')) {
+                                const match = fb.match(/((?:全量)?日志归档：.*(?:\n|$))+/);
+                                return match ? match[0].trim() : fb;
+                            }
+                            return fb;
+                        });
+
+                        sysLogger.appendChat('Tool_Feedback', displayFeedbacks.join('\n\n'));
                         this.contextManager.addMessage('System_Feedback', feedbackStr);
                         sysLogger.log(LogLevel.INFO, `将系统反馈交还给大模型 (循环深度: ${currentDepth})...`);
                     } else {

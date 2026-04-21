@@ -85,12 +85,12 @@ if __name__ == "__main__":
     # 强制将输出流编码设置为 UTF-8 以解决跨进程中文乱码和报错问题
     sys.stdout.reconfigure(encoding='utf-8')
     
-    if len(sys.argv) < 3:
-        print("用法: python screenshot.py <窗口标题|desktop> <输出路径>")
+    if len(sys.argv) < 2:
+        print("用法: python screenshot.py <窗口标题|desktop>")
         sys.exit(1)
 
     target = sys.argv[1]
-    output_path = sys.argv[2]
+    output_path = "./screenshot.png"
 
     # 确保输出目录存在
     output_dir = os.path.dirname(os.path.abspath(output_path))

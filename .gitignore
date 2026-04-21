@@ -3,7 +3,6 @@
 dist
 doc
 node_modules
-test
 01合并文件.py
 02code.md
 03项目代码生成文件.py
