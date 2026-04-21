@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ActionRegistry } from '../actions/base.js';
+import { ActionRegistry, type ActionResult } from '../actions/base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { localConfig } from '../core/config.js';
 import type { ILLMProvider } from '../llm/interface.js';
@@ -51,10 +51,10 @@ export class AIMLParser {
     }
 
     /**
-     * 执行解析出的节点流，并收集反馈
+     * 执行解析出的节点流，并收集结构化的反馈对象
      */
-    static async executeNodes(nodes: ParsedNode[], provider?: ILLMProvider): Promise<string[]> {
-        const feedbacks: string[] = [];
+    static async executeNodes(nodes: ParsedNode[], provider?: ILLMProvider): Promise<ActionResult[]> {
+        const feedbacks: ActionResult[] = [];
 
         for (const node of nodes) {
             const actionInstance = ActionRegistry.get(node.tag);
@@ -104,7 +104,7 @@ export class AIMLParser {
                         feedbacks.push(...innerFeedbacks);
                     } catch (err: any) {
                         sysLogger.log(LogLevel.ERROR, `动态宏技能 <${node.tag}> 展开执行失败: ${err.message}`);
-                        feedbacks.push(`【系统自动反馈：宏技能 <${node.tag}> 执行异常】\n${err.message}`);
+                        feedbacks.push({ type: 'error', content: `【系统自动反馈：宏技能 <${node.tag}> 执行异常】\n${err.message}` });
                     }
                     continue;
                 }
@@ -128,7 +128,7 @@ export class AIMLParser {
                 }
 
                 const errorMsg = `【系统自动反馈：<${node.tag}> 执行异常】\n${errorMsgStr}`;
-                feedbacks.push(errorMsg);
+                feedbacks.push({ type: 'error', content: errorMsg });
             }
         }
 

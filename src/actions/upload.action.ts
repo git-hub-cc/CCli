@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { BaseAction } from './base.js';
+import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import type { ILLMProvider } from '../llm/interface.js';
 import { ContextManager } from '../core/context-manager.js';
@@ -11,7 +11,7 @@ import { ContextManager } from '../core/context-manager.js';
 export class UploadAction extends BaseAction {
     tag = 'upload';
 
-    async execute(attributes: Record<string, string>, content: string, provider?: ILLMProvider): Promise<string> {
+    async execute(attributes: Record<string, string>, content: string, provider?: ILLMProvider): Promise<ActionResult> {
         const rawPath = attributes['path'];
         const grid = attributes['grid'] !== 'false';
 
@@ -63,7 +63,10 @@ export class UploadAction extends BaseAction {
                 // 忽略日志附件存档错误
             }
 
-            return feedback;
+            return {
+                type: 'upload',
+                content: feedback
+            };
         } catch (err: any) {
             throw new Error(`文件挂载逻辑异常: ${err.message}`);
         }

@@ -1,9 +1,8 @@
 import { execa } from 'execa';
-import fs from 'fs';
-import path from 'path';
-import { BaseAction } from './base.js';
+import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { localConfig } from '../core/config.js';
+import { getConsoleType } from '../core/utils.js';
 
 /**
  * 处理 <act> 标签：执行终端命令行操作
@@ -11,7 +10,7 @@ import { localConfig } from '../core/config.js';
 export class ActAction extends BaseAction {
     tag = 'act';
 
-    async execute(attributes: Record<string, string>, content: string): Promise<string> {
+    async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         if (!content || !content.trim()) {
             throw new Error('<act> 标签内容不能为空');
         }
@@ -28,17 +27,7 @@ export class ActAction extends BaseAction {
                 : log;
         };
 
-        let currentConsole = 'powershell';
-        try {
-            const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
-            if (fs.existsSync(envPath)) {
-                const envContent = fs.readFileSync(envPath, 'utf-8');
-                const match = envContent.match(/控制台:\s*(.+)/);
-                if (match && match[1]) {
-                    currentConsole = match[1].trim().toLowerCase();
-                }
-            }
-        } catch (e) {}
+        const currentConsole = getConsoleType();
 
         if (isWindow) {
             try {
@@ -59,7 +48,10 @@ export class ActAction extends BaseAction {
                 execa(winCmd, { shell: true, detached: true }).unref();
 
                 sysLogger.log(LogLevel.SUCCESS, `已唤起新独立窗口执行服务命令`);
-                return `【系统自动反馈：命令执行结果】\n已成功在独立的物理新窗口启动了该服务或命令。当前主进程未被阻塞，请继续完成下一步任务。`;
+                return {
+                    type: 'act',
+                    content: `【系统自动反馈：命令执行结果】\n已成功在独立的物理新窗口启动了该服务或命令。当前主进程未被阻塞，请继续完成下一步任务。`
+                };
             } catch (err: any) {
                 sysLogger.log(LogLevel.ERROR, `唤起新窗口异常: ${err.message}`);
                 throw new Error(`唤起新窗口异常:\n${err.message}`);
@@ -120,7 +112,10 @@ export class ActAction extends BaseAction {
             }
 
             sysLogger.log(LogLevel.SUCCESS, `命令执行完毕`);
-            return feedback;
+            return {
+                type: 'act',
+                content: feedback
+            };
 
         } catch (err: any) {
             sysLogger.log(LogLevel.ERROR, `命令执行失败: ${err.shortMessage || err.message}`);

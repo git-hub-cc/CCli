@@ -3,7 +3,7 @@
 SetWorkingDir(A_ScriptDir)
 CoordMode("Mouse", "Screen")
 
-; 确保标准输出安全写入 (刚才你漏掉了这一段)
+; 确保标准输出安全写入
 SafeAppend(Text) {
     try {
         FileAppend(Text, "*", "UTF-8")

@@ -1,5 +1,5 @@
 import { confirm, input } from '@inquirer/prompts';
-import { BaseAction } from './base.js';
+import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 
 /**
@@ -8,7 +8,7 @@ import { sysLogger, LogLevel } from '../core/logger.js';
 export class AskAction extends BaseAction {
     tag = 'ask';
 
-    async execute(attributes: Record<string, string>, content: string): Promise<string> {
+    async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const type = attributes['type'] || 'input';
         const questionText = content.trim() || 'AI 需要您的确认或输入：';
 
@@ -18,17 +18,26 @@ export class AskAction extends BaseAction {
             if (type === 'confirm') {
                 const answer = await confirm({ message: questionText, default: true });
                 sysLogger.log(LogLevel.INFO, `用户确认结果: ${answer}`);
-                return `【系统自动反馈：用户授权结果】\n用户选择了: ${answer ? '是 (Yes)' : '否 (No)'}`;
+                return {
+                    type: 'ask',
+                    content: `【系统自动反馈：用户授权结果】\n用户选择了: ${answer ? '是 (Yes)' : '否 (No)'}`
+                };
             } else {
                 const answer = await input({ message: questionText });
                 sysLogger.log(LogLevel.INFO, `用户输入内容: ${answer}`);
-                return `【系统自动反馈：用户输入结果】\n${answer}`;
+                return {
+                    type: 'ask',
+                    content: `【系统自动反馈：用户输入结果】\n${answer}`
+                };
             }
         } catch (err: any) {
-            // 处理用户强行中断 (Ctrl+C)，通过抛出特殊错误，交由外层生命周期统一释放浏览器资源
+            // 处理用户强行中断 (Ctrl+C)，返回结构化的中断事件供引擎层捕获，替代暴力抛错
             if (err.name === 'ExitPromptError') {
                 sysLogger.log(LogLevel.ERROR, '用户强制取消了输入');
-                throw new Error('USER_INTERRUPT');
+                return {
+                    type: 'interrupt',
+                    content: '用户中止了交互'
+                };
             }
             throw err;
         }

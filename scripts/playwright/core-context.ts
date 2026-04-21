@@ -104,7 +104,7 @@ export async function getConnectedPage(): Promise<{ browser: any, context: Brows
     const context = contexts[0];
     const pages = context.pages();
     
-    // 优先选取非关闭状态的前台标签页，否则开启新页签
+    // 优先选取非关闭状态的标签页，否则开启新页签
     let page = pages.find(p => !p.isClosed());
     if (!page) {
         page = await context.newPage();

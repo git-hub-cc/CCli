@@ -24,7 +24,7 @@ export class AgentRouterApiProvider implements ILLMProvider {
             // 将最新提问压入内部记忆
             this.messages.push({ role: 'user', content: prompt });
 
-            // 严格遵循 req.md 的所有特征指纹及参数体
+            // 严格遵循请求的所有特征指纹及参数体
             const headers = {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localConfig.defaultApiKey}`,

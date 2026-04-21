@@ -6,7 +6,6 @@ import { sysLogger, LogLevel } from './logger.js';
 import { refreshSystemProbe } from './probe.js';
 import { PromptBuilder } from '../prompt/builder.js';
 import { AIMLParser } from '../parser/aiml-parser.js';
-import { RecapDispatcher } from '../recap/dispatcher.js';
 import { LLMProviderFactory } from '../llm/factory.js';
 import { ContextManager } from './context-manager.js';
 import { SystemInterceptor } from '../parser/interceptor.js';

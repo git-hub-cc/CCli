@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { BaseAction } from './base.js';
+import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 
 /**
@@ -9,7 +9,7 @@ import { sysLogger, LogLevel } from '../core/logger.js';
 export class FileAction extends BaseAction {
     tag = 'file';
 
-    async execute(attributes: Record<string, string>, content: string): Promise<string> {
+    async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const rawPath = attributes['path'];
         const type = attributes['type'] || 'all';
 
@@ -34,7 +34,10 @@ export class FileAction extends BaseAction {
             if (type === 'all') {
                 fs.writeFileSync(targetPath, cleanContent, 'utf-8');
                 sysLogger.log(LogLevel.SUCCESS, `文件全量写入成功: ${targetPath}`);
-                return `【系统自动反馈：本地文件操作结果】\n文件 \`${rawPath}\` 已成功全量覆盖写入。`;
+                return {
+                    type: 'file',
+                    content: `【系统自动反馈：本地文件操作结果】\n文件 \`${rawPath}\` 已成功全量覆盖写入。`
+                };
             } else if (type === 'diff') {
                 if (!fs.existsSync(targetPath)) {
                     throw new Error(`文件不存在，无法执行 diff 修改: ${targetPath}`);
@@ -46,7 +49,10 @@ export class FileAction extends BaseAction {
                 if (patchResult.changed) {
                     fs.writeFileSync(targetPath, patchResult.content, 'utf-8');
                     sysLogger.log(LogLevel.SUCCESS, `文件增量修改成功: ${targetPath}`);
-                    return `【系统自动反馈：本地文件操作结果】\n文件 \`${rawPath}\` 已根据 diff 格式成功应用了局部修改。`;
+                    return {
+                        type: 'file',
+                        content: `【系统自动反馈：本地文件操作结果】\n文件 \`${rawPath}\` 已根据 diff 格式成功应用了局部修改。`
+                    };
                 } else {
                     throw new Error("提供的 diff 块无法匹配原文内容。请检查上下文是否精确，或者退回使用 type=\"all\" 全量重写。");
                 }
