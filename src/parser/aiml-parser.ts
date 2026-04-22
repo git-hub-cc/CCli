@@ -75,7 +75,7 @@ export class AIMLParser {
                         // 移除文件顶部的 YAML Meta 头 (--- xxx ---)
                         let template = macroRawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
 
-                        // 注入 {0} 代表未切割的原始参数字符串，防止由于参数自带英文逗号引发解析异常
+                        // 注入 {0} 代表未切割的原始参数字符串
                         const rawArgValue = node.content
                             .replace(/`/g, '``')
                             .replace(/"/g, '`"')
@@ -85,19 +85,16 @@ export class AIMLParser {
                         // 按照逗号分割提取参数
                         const args = node.content.split(',');
                         for (let i = 0; i < args.length; i++) {
-                            // 必须优先转义反引号，防止后续步骤添加的反引号被错误地二次转义
                             args[i] = args[i]
                                 .replace(/`/g, '``')
                                 .replace(/"/g, '`"')
                                 .replace(/\$/g, '`$');
 
                             const argValue = args[i]?.trim() || '';
-                            // 替换 {1}, {2} 等占位符。使用函数返回值避免 argValue 中含有特殊 $ 符号引发错误
                             template = template.replace(new RegExp(`\\{${i + 1}\\}`, 'g'), () => argValue);
                         }
 
                         template = template.replace(/\{\d+\}/g, '');
-                        template = template.replace(/\.\/scripts\//g, `${PKG_ROOT.replace(/\\/g, '/')}/scripts/`);
 
                         const innerNodes = AIMLParser.parse(template);
                         const innerFeedbacks = await AIMLParser.executeNodes(innerNodes, provider);
@@ -121,7 +118,6 @@ export class AIMLParser {
             } catch (err: any) {
                 sysLogger.log(LogLevel.ERROR, `<${node.tag}> 动作执行失败: ${err.message}`);
 
-                // 全局兜底拦截：如果某个插件抛出的异常日志过大，强制执行截断
                 let errorMsgStr = err.message || String(err);
                 if (errorMsgStr.length > localConfig.maxErrorLogLength) {
                     errorMsgStr = `...[前方内容已截断]\n${errorMsgStr.slice(-localConfig.maxErrorLogLength)}`;
