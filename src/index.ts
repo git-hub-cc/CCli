@@ -4,6 +4,7 @@ import { sysLogger, LogLevel } from './core/logger.js';
 import { registerAllActions } from './actions/index.js';
 import { ChatEngine } from './core/chat-engine.js';
 import { getMaskedConfig } from './core/config.js';
+import { TestEngine } from './core/test-engine.js';
 
 const program = new Command();
 
@@ -36,6 +37,16 @@ program
         });
 
         await engine.start();
+    });
+
+program
+    .command('test [caseName]')
+    .description('运行本地自动化测试用例')
+    .option('--tags <tags>', '通过标签筛选测试用例，逗号分隔 (例: file,act)')
+    .action(async (caseName, options) => {
+        registerAllActions();
+        const engine = new TestEngine();
+        await engine.run(caseName, options.tags);
     });
 
 process.on('unhandledRejection', (reason) => {

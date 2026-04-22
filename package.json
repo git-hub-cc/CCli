@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --clean",
+    "test": "npm run build && node dist/index.js test",
     "chat": "npm run build && node dist/index.js chat",
     "chat headless": "npm run build && node dist/index.js chat --headless",
     "chat:siliconflow": "npm run build && node dist/index.js chat --provider siliconflow",

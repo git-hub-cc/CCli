@@ -20,9 +20,17 @@ export class Logger {
     private recapPromptsFilePath: string = '';
     private recapDataFilePath: string = '';
     private browserLogDir: string = '';
+    private isTestMode: boolean = false;
+
+    enableTestMode() {
+        this.isTestMode = true;
+    }
 
     initSession() {
-        const baseDir = path.join(process.cwd(), '.ccli', 'logs');
+        const baseDir = this.isTestMode 
+            ? path.join(process.cwd(), '.ccli', 'logs', 'tests')
+            : path.join(process.cwd(), '.ccli', 'logs');
+            
         const today = new Date();
         const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const dateDir = path.join(baseDir, dateStr);
