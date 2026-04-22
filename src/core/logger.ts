@@ -118,7 +118,7 @@ export class Logger {
         if (!this.sessionDir) return null;
         if (!fs.existsSync(sourceFilePath)) throw new Error(`附件不存在: ${sourceFilePath}`);
 
-        const fileDir = path.join(this.sessionDir, 'file');
+        const fileDir = path.join(this.sessionDir, 'files');
         if (!fs.existsSync(fileDir)) {
             fs.mkdirSync(fileDir, { recursive: true });
         }
@@ -136,7 +136,7 @@ export class Logger {
         fs.copyFileSync(sourceFilePath, targetPath);
 
         return {
-            relativePath: `file/${newFileName}`,
+            relativePath: `files/${newFileName}`,
             fileName: originalName
         };
     }
@@ -144,7 +144,7 @@ export class Logger {
     saveTextAsAttachment(content: string, fullContent?: string, ext: string = '.md'): { relativePath: string, fullRelativePath?: string, fileName: string } | null {
         if (!this.sessionDir) return null;
 
-        const fileDir = path.join(this.sessionDir, 'file');
+        const fileDir = path.join(this.sessionDir, 'files');
         if (!fs.existsSync(fileDir)) {
             fs.mkdirSync(fileDir, { recursive: true });
         }
@@ -170,7 +170,7 @@ export class Logger {
         }
 
         return {
-            relativePath: `file/${newFileName}`,
+            relativePath: `files/${newFileName}`,
             fullRelativePath,
             fileName: newFileName
         };

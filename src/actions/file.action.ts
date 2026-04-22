@@ -11,7 +11,7 @@ export class FileAction extends BaseAction {
 
     async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const rawPath = attributes['path'];
-        const type = attributes['type'] || 'all';
+        const type = attributes['type'] || 'overwrite';
 
         if (!rawPath) {
             throw new Error('<file> 标签缺少必要的 path 属性');
@@ -31,7 +31,7 @@ export class FileAction extends BaseAction {
             let cleanContent = content;
             cleanContent = cleanContent.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
 
-            if (type === 'all') {
+            if (type === 'overwrite') {
                 fs.writeFileSync(targetPath, cleanContent, 'utf-8');
                 sysLogger.log(LogLevel.SUCCESS, `文件全量写入成功: ${targetPath}`);
                 return {
@@ -54,7 +54,7 @@ export class FileAction extends BaseAction {
                         content: `【系统自动反馈：本地文件操作结果】\n文件 \`${rawPath}\` 已根据 diff 格式成功应用了局部修改。`
                     };
                 } else {
-                    throw new Error("提供的 diff 块无法匹配原文内容。请检查上下文是否精确，或者退回使用 type=\"all\" 全量重写。");
+                    throw new Error("提供的 diff 块无法匹配原文内容。请检查上下文是否精确，或者退回使用 type=\"overwrite\" 全量重写。");
                 }
             } else {
                 throw new Error(`不支持的文件操作模式: ${type}`);

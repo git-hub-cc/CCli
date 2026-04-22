@@ -16,9 +16,9 @@ export class ActAction extends BaseAction {
         }
 
         const command = content.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
-        const isWindow = attributes['window'] === 'true';
+        const isDetached = attributes['detached'] === 'true';
 
-        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}${isWindow ? ' (新独立后台窗口模式)' : ''}`);
+        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}${isDetached ? ' (新独立后台窗口模式)' : ''}`);
 
         const truncateLog = (log: string) => {
             if (!log) return '';
@@ -29,7 +29,7 @@ export class ActAction extends BaseAction {
 
         const currentConsole = getConsoleType();
 
-        if (isWindow) {
+        if (isDetached) {
             try {
                 let winCmd = '';
                 if (process.platform === 'win32') {
