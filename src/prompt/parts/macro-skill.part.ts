@@ -9,7 +9,7 @@ export class MacroSkillPart implements IPromptPart {
     generate(): string {
         let content = '';
 
-        const staticPath = path.join(this.promptsDir, '04宏技能库.md');
+        const staticPath = path.join(this.promptsDir, '04宏技能使用要求.md');
         if (fs.existsSync(staticPath)) {
             content += fs.readFileSync(staticPath, 'utf-8') + '\n\n';
         } else {
@@ -38,7 +38,7 @@ export class MacroSkillPart implements IPromptPart {
                     const params = paramsMatch && paramsMatch[1] ? paramsMatch[1].trim() : '无';
                     const req = reqMatch && reqMatch[1] ? reqMatch[1].trim() : '-';
                     
-                    macroList += `| \`<${name}>\` | ${desc} | ${params} | ${req} |\n`;
+                    macroList += `| <${name}> | ${desc} | ${params} | ${req} |\n`;
                     hasValidMacro = true;
                 }
             } catch (err) {

@@ -72,7 +72,11 @@ export class ActAction extends BaseAction {
             if (process.platform === 'win32') {
                 if (currentConsole.includes('powershell')) {
                     shellOpt = currentConsole.includes('7') ? 'pwsh' : 'powershell';
-                    finalCommand = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${command}`;
+                    let psCommand = command.trim();
+                    if (/^["']/.test(psCommand)) {
+                        psCommand = `& ${psCommand}`;
+                    }
+                    finalCommand = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${psCommand}`;
                 } else {
                     shellOpt = 'cmd.exe';
                     finalCommand = `chcp 65001 >nul & ${command}`;

@@ -60,7 +60,7 @@ def get_process_stats():
         
         # 启发式判断建议
         if total_mem_mb < 5.0 and len(found_processes) == 1:
-            print(">> [启发式提示]: 目标内存占用极低，可能处于刚启动阶段或被挂起，如果需要操作 UI，建议使用 window-wait 或等待一段时间。")
+            print(">> [启发式提示]: 目标内存占用极低，可能处于刚启动阶段或被挂起。")
             
     except Exception as e:
         print(f"【执行异常】获取进程状态失败: {e}")

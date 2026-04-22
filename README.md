@@ -27,7 +27,13 @@
 - **Python** 3.x (用于部分内置宏技能)
 - **AutoHotkey v2** (用于微信控制等桌面 GUI 自动化)
 
-推荐使用 Scoop 安装基础依赖。请在 **PowerShell** (非管理员权限) 中运行：
+推荐使用 powershell7
+```powershell
+# 使用官方提供的快速安装脚本
+iex "& { $(irm https://aka.ms/install-powershell.ps1) } -UseMSI"
+```
+
+要求使用 Scoop 安装基础依赖。请在 **PowerShell** (非管理员权限) 中运行：
 
 ```powershell
 # 设置执行策略

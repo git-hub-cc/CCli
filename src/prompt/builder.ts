@@ -72,8 +72,8 @@ export class PromptBuilder {
             new StaticPart(this.promptsDir, '02AI标记语言.md'),
             new MacroSkillPart(this.promptsDir, this.macroDir),
             new DynamicScriptPart(this.promptsDir, this.scriptsDir),
-            new StaticPart(this.promptsDir, '03角色微调.md'),
-            new DataTemplatePart(this.dataDir)
+            new DataTemplatePart(this.dataDir),
+            new StaticPart(this.promptsDir, '03角色微调.md')
         ];
 
         let finalPrompt = '';
@@ -82,6 +82,6 @@ export class PromptBuilder {
             finalPrompt += part.generate();
         }
 
-        return finalPrompt.trim();
+        return finalPrompt.replace(/\n+/g, '\n').trim()+'\n### 完成下面任务';
     }
 }

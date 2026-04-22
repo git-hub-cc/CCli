@@ -7,7 +7,7 @@ export function getConsoleType(): string {
         const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
         if (fs.existsSync(envPath)) {
             const envContent = fs.readFileSync(envPath, 'utf-8');
-            const match = envContent.match(/控制台:\s*(.+)/);
+            const match = envContent.match(/Shell:\s*(.+)/);
             if (match && match[1]) {
                 return match[1].trim().toLowerCase();
             }

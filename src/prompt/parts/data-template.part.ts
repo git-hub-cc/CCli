@@ -14,7 +14,7 @@ export class DataTemplatePart implements IPromptPart {
         }
 
         if (content) {
-            return `\n${content}\n## 完成下面任务\n\n`;
+            return `\n${content}\n`;
         }
         return '';
     }

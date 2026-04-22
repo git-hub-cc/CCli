@@ -189,19 +189,22 @@ export class ChatEngine {
                     }
 
                     if (interceptResult.cleanFeedbacks.length > 0) {
-                        const feedbackStr = interceptResult.cleanFeedbacks.join('\n\n');
-                        currentAskPrompt = `${feedbackStr}\n\n请根据上述执行结果继续思考或操作。若任务完成，请直接输出纯文本回答。`;
+                        // 1. 获取包含所有日志链接的原始字符串，专门用于写入本地 chat.md
+                        const rawFeedbackStr = interceptResult.cleanFeedbacks.join('\n\n');
 
-                        const displayFeedbacks = interceptResult.cleanFeedbacks.map(fb => {
-                            if (fb.includes('全量日志归档：')) {
-                                const match = fb.match(/((?:全量)?日志归档：.*(?:\n|$))+/);
-                                return match ? match[0].trim() : fb;
-                            }
-                            return fb;
+                        // 2. 清洗掉日志路径信息，生成供 AI 阅读的纯净版字符串
+                        const cleanedFeedbacks = interceptResult.cleanFeedbacks.map(fb => {
+                            return fb.replace(/\n?(?:全量)?日志归档：.*/g, '').trim();
                         });
+                        const cleanedFeedbackStr = cleanedFeedbacks.join('\n\n');
 
-                        sysLogger.appendChat('Tool_Feedback', displayFeedbacks.join('\n\n'));
-                        this.contextManager.addMessage('System_Feedback', feedbackStr);
+                        // 3. 构建发给 AI 的最终 Prompt (使用纯净版)
+                        currentAskPrompt = `${cleanedFeedbackStr}\n\n请根据上述执行结果继续思考或操作。若任务完成，请直接输出纯文本回答。`;
+
+                        // 4. 执行分流：硬盘记全量，内存记清洗量
+                        sysLogger.appendChat('Tool_Feedback', rawFeedbackStr);         // 写入 chat.md，保留链接供人点击
+                        this.contextManager.addMessage('System_Feedback', cleanedFeedbackStr); // 存入会话内存，对 AI 隐身
+
                         sysLogger.log(LogLevel.INFO, `将系统反馈交还给大模型 (循环深度: ${currentDepth})...`);
                     } else {
                         break;
