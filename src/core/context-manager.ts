@@ -36,7 +36,7 @@ export class ContextManager {
         try {
             return this.encoder.encode(text).length;
         } catch (e) {
-            const chinese = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+            const chinese = (text.match(/[\u4e00-\u9fa5]/g) ||[]).length;
             const others = text.length - chinese;
             return chinese + Math.ceil(others / 4);
         }
@@ -57,9 +57,13 @@ export class ContextManager {
     }
 
     private recountTokens() {
-        this.currentTotalTokens = this.baseTokens + this.extraTokens;
-        for (const msg of this.chatHistory) {
-            this.currentTotalTokens += this.calculateTokens(msg.content);
+        if (this.chatHistory.length === 0) {
+            this.currentTotalTokens = 0;
+        } else {
+            this.currentTotalTokens = this.baseTokens + this.extraTokens;
+            for (const msg of this.chatHistory) {
+                this.currentTotalTokens += this.calculateTokens(msg.content);
+            }
         }
     }
 
@@ -81,14 +85,13 @@ export class ContextManager {
 
     addMessage(role: string, content: string) {
         this.chatHistory.push({ role, content });
-        this.currentTotalTokens += this.calculateTokens(content);
+        this.recountTokens();
     }
 
     popMessage(): ChatMessage | undefined {
         const msg = this.chatHistory.pop();
         if (msg) {
-            this.currentTotalTokens -= this.calculateTokens(msg.content);
-            if (this.currentTotalTokens < 0) this.currentTotalTokens = 0;
+            this.recountTokens();
         }
         return msg;
     }
@@ -100,7 +103,7 @@ export class ContextManager {
     getPromptWithHints(text: string): string {
         let promptWithHint = text;
         const tokenUsageRatio = this.currentTotalTokens / localConfig.modelMaxTokens;
-        
+
         if (tokenUsageRatio >= localConfig.tokenThresholdPercent) {
             promptWithHint += `\n\n${this.cachedHintPrompt}`;
         }

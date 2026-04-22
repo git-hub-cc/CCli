@@ -21,16 +21,18 @@ export class MacroSkillPart implements IPromptPart {
                 const fileContent = fs.readFileSync(path.join(this.macroDir, file), 'utf-8');
                 const nameMatch = fileContent.match(/name:\s*(.+)/);
                 const descMatch = fileContent.match(/description:\s*(.+)/);
-                const paramsMatch = fileContent.match(/params:\s*(.+)/);
+                const contentMatch = fileContent.match(/content:\s*(.+)/);
+                const attrMatch = fileContent.match(/params:\s*(.+)/);
                 const reqMatch = fileContent.match(/requires:\s*(.+)/);
 
                 if (nameMatch && nameMatch[1] && descMatch && descMatch[1]) {
                     const name = nameMatch[1].trim();
                     const desc = descMatch[1].trim();
-                    const params = paramsMatch && paramsMatch[1] ? paramsMatch[1].trim() : '无';
+                    const contentParam = contentMatch && contentMatch[1] ? contentMatch[1].trim() : '-';
+                    const attrParam = attrMatch && attrMatch[1] ? attrMatch[1].trim() : '-';
                     const req = reqMatch && reqMatch[1] ? reqMatch[1].trim() : '-';
 
-                    macroList += `| \`<${name}>\` | ${desc} | 内容: ${params} | ${req} |\n`;
+                    macroList += `| \`<${name}>\` | ${desc} | ${contentParam} | ${attrParam} | ${req} |\n`;
                     hasValidMacro = true;
                 }
             } catch (err) {

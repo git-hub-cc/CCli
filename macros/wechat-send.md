@@ -1,7 +1,8 @@
 ---
 name: wechat-send
 description: 微信发送消息/文件
-params: 搜索词, 消息, 路径[可选]
+content: 搜索词, 消息, 路径[可选]
+params: -
 requires: 微信须已启动且登录
 ---
 

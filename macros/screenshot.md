@@ -1,7 +1,8 @@
 ---
 name: screenshot
 description: 截图并挂载
-params: 窗口标题或desktop
+content: 窗口标题或desktop
+params: -
 requires: 截取特定软件时目标窗口须已打开
 ---
 

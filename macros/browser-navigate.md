@@ -1,7 +1,8 @@
 ---
 name: browser-navigate
 description: 控制现有浏览器跳转
-params: 标题/进程名, 目标URL
+content: 标题/进程名, 目标URL
+params: -
 requires: 浏览器须已启动
 ---
 

@@ -1,7 +1,8 @@
 ---
 name: mouse-hover
 description: 屏幕绝对坐标悬停
-params: X, Y, 时间[ms]
+content: X, Y, 时间[ms]
+params: -
 requires: 窗口须可见。未知坐标须先用screenshot(grid)获取
 ---
 

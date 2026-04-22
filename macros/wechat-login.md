@@ -1,7 +1,8 @@
 ---
 name: wechat-login
 description: 登录已打开的微信
-params: 无
+content: -
+params: -
 requires: 微信主程序须已启动
 ---
 

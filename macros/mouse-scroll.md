@@ -1,7 +1,8 @@
 ---
 name: mouse-scroll
 description: 鼠标物理滚动
-params: 方向[Up/Down], 次数
+content: 方向[Up/Down], 次数
+params: -
 requires: 窗口需前台激活且鼠标在可滚动区域
 ---
 
