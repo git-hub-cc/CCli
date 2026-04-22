@@ -69,7 +69,7 @@ export class PromptBuilder {
     build(): string {
         const pipeline: IPromptPart[] = [
             new StaticPart(this.promptsDir, '01角色定义.md'),
-            new StaticPart(this.promptsDir, '02AI标记语言.md'),
+            new StaticPart(this.promptsDir, '02系统指令库.md'),
             new MacroSkillPart(this.promptsDir, this.macroDir),
             new DynamicScriptPart(this.promptsDir, this.scriptsDir),
             new DataTemplatePart(this.dataDir),

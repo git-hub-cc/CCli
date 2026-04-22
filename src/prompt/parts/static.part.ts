@@ -12,7 +12,7 @@ export class StaticPart implements IPromptPart {
 
     generate(): string {
         if (fs.existsSync(this.filePath)) {
-            return fs.readFileSync(this.filePath, 'utf-8') + '\n\n';
+            return fs.readFileSync(this.filePath, 'utf-8') + '\n';
         } else {
             sysLogger.log(LogLevel.WARN, `构建提示词时未找到目标文件: ${this.fileName}`);
             return '';
