@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import fs from 'fs';
+import path from 'path';
+import chalk from 'chalk';
+import { input } from '@inquirer/prompts';
 import { sysLogger, LogLevel } from './core/logger.js';
 import { registerAllActions } from './actions/index.js';
-import { ChatEngine } from './core/chat-engine.js';
-import { getMaskedConfig } from './core/config.js';
+import { ChatSession } from './chat/chat-session.js';
+import { getMaskedConfig, localConfig } from './core/config.js';
 import { TestEngine } from './core/test-engine.js';
+import { LLMProviderFactory } from './llm/factory.js';
 
 const program = new Command();
 
@@ -29,14 +34,38 @@ program
 
         registerAllActions();
 
-        const engine = new ChatEngine({
+        // 独立处理复盘模式，不污染常规会话的生命周期
+        if (options.recapMode && options.historyFile) {
+            try {
+                const provider = LLMProviderFactory.create(options.provider || localConfig.defaultProvider || 'gemini');
+                sysLogger.log(LogLevel.INFO, `正在初始化复盘专享驱动...`);
+                await provider.init(!!options.headless);
+
+                let history = [];
+                if (fs.existsSync(options.historyFile)) {
+                    history = JSON.parse(fs.readFileSync(options.historyFile, 'utf-8'));
+                    fs.unlinkSync(options.historyFile);
+                }
+
+                const { BaseRecapMode } = await import('./recap/base.js');
+                await new BaseRecapMode(options.recapMode as any).execute(provider, history);
+
+                await input({ message: chalk.yellow('复盘执行完毕，按回车键关闭窗口...') });
+            } catch (err: any) {
+                sysLogger.log(LogLevel.ERROR, `复盘模式执行失败: ${err.message}`);
+                const crashLogPath = path.resolve(process.cwd(), '.ccli', 'logs', 'recap-crash.log');
+                fs.appendFileSync(crashLogPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+                await input({ message: chalk.red('复盘执行发生异常，请查阅日志。按回车键退出...') });
+            }
+            return;
+        }
+
+        const session = new ChatSession({
             provider: options.provider,
-            headless: !!options.headless,
-            recapMode: options.recapMode,
-            historyFile: options.historyFile
+            headless: !!options.headless
         });
 
-        await engine.start();
+        await session.start();
     });
 
 program
