@@ -15,8 +15,10 @@ export class PromptBuilder {
     private macroDir: string;
     private dataDir: string;
     private templateDir: string;
+    private provider: string;
 
-    constructor() {
+    constructor(provider: string = 'gemini') {
+        this.provider = provider;
         this.promptsDir = path.resolve(PKG_ROOT, 'prompts');
         this.macroDir = path.resolve(PKG_ROOT, 'macros');
         this.templateDir = path.resolve(PKG_ROOT, 'data-templates');
@@ -30,7 +32,7 @@ export class PromptBuilder {
         }
 
         const baseFile = path.join(this.dataDir, 'index.md');
-        
+
         if (!fs.existsSync(baseFile)) {
             if (fs.existsSync(this.templateDir)) {
                 const files = fs.readdirSync(this.templateDir);
@@ -63,6 +65,28 @@ export class PromptBuilder {
         for (const part of pipeline) {
             finalPrompt += part.generate();
         }
+
+        const tweaksPath = path.resolve(this.promptsDir, 'tweaks', `${this.provider}.md`);
+        if (fs.existsSync(tweaksPath)) {
+            try {
+                const tweakContent = fs.readFileSync(tweaksPath, 'utf-8');
+                tweakContent.split('\n').forEach(line => {
+                    const cleanLine = line.split('#')[0].trim();
+                    if (!cleanLine) return;
+
+                    const [key, ...values] = cleanLine.split('=');
+                    if (!key) return;
+
+                    const value = values.join('=').trim();
+                    const placeholder = new RegExp(`\\{\\{${key.trim()}\\}\\}`, 'g');
+                    finalPrompt = finalPrompt.replace(placeholder, value);
+                });
+            } catch (e: any) {
+                sysLogger.log(LogLevel.ERROR, `解析微调配置文件失败 (${tweaksPath}): ${e.message}`);
+            }
+        }
+
+        finalPrompt = finalPrompt.replace(/\{\{[A-Z0-9_]+\}\}/g, '');
 
         return finalPrompt.replace(/\n+/g, '\n').trim()+'\n### 完成下面任务';
     }

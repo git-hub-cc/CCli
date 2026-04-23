@@ -6,8 +6,8 @@ export class SessionContext {
     public systemPrompt: string = '';
     private builder: PromptBuilder;
 
-    constructor(private contextManager: ContextManager) {
-        this.builder = new PromptBuilder();
+    constructor(private contextManager: ContextManager, provider: string = 'gemini') {
+        this.builder = new PromptBuilder(provider);
     }
 
     /**

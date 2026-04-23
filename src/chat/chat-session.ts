@@ -24,9 +24,10 @@ export class ChatSession {
 
     constructor(options: ChatSessionOptions) {
         this.options = options;
-        this.provider = LLMProviderFactory.create(options.provider || localConfig.defaultProvider || 'gemini');
+        const providerName = options.provider || localConfig.defaultProvider || 'gemini';
+        this.provider = LLMProviderFactory.create(providerName);
         this.contextManager = new ContextManager();
-        this.sessionContext = new SessionContext(this.contextManager);
+        this.sessionContext = new SessionContext(this.contextManager, providerName);
     }
 
     private async gracefulExit() {
