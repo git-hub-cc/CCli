@@ -50,7 +50,10 @@ export class SandboxAction extends BaseAction {
                 fs.writeFileSync(tempFile, code, 'utf-8');
 
                 try {
-                    const { stdout, stderr } = await execa('python', [tempFile], { timeout: 15000 });
+                    const { stdout, stderr } = await execa('python', [tempFile], { 
+                        timeout: 15000,
+                        env: { PYTHONIOENCODING: 'utf-8' }
+                    });
                     fs.unlinkSync(tempFile);
                     sysLogger.log(LogLevel.SUCCESS, `沙箱代码 (Python) 执行完毕`);
                     

@@ -20,7 +20,9 @@
     "chat:doubao": "npm run build && node dist/index.js chat --provider doubao",
     "chat:doubao headless": "npm run build && node dist/index.js chat --headless --provider doubao",
     "chat:mimo": "npm run build && node dist/index.js chat --provider mimo",
-    "chat:mimo headless": "npm run build && node dist/index.js chat --headless --provider mimo"
+    "chat:mimo headless": "npm run build && node dist/index.js chat --headless --provider mimo",
+    "chat:kimi": "npm run build && node dist/index.js chat --provider kimi",
+    "chat:kimi headless": "npm run build && node dist/index.js chat --headless --provider kimi"
   },
   "type": "module",
   "bin": {

@@ -80,7 +80,10 @@ export async function refreshSystemProbe(): Promise<string> {
     let windowsList = '无法获取当前窗口列表';
     try {
         const winScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'list-running-apps.py');
-        const { stdout: winOut } = await execa('python', [winScriptPath], { reject: false });
+        const { stdout: winOut } = await execa('python', [winScriptPath], { 
+            reject: false,
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        });
         if (winOut && winOut.trim() !== '') {
             windowsList = winOut.trim();
         }
@@ -91,7 +94,10 @@ export async function refreshSystemProbe(): Promise<string> {
     let displayInfo = '无法获取显示器拓扑与缩放信息';
     try {
         const displayScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'get-display-info.py');
-        const { stdout: displayOut } = await execa('python', [displayScriptPath], { reject: false });
+        const { stdout: displayOut } = await execa('python', [displayScriptPath], { 
+            reject: false,
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        });
         if (displayOut && displayOut.trim() !== '') {
             displayInfo = displayOut.trim();
         }

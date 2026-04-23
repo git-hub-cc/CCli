@@ -46,6 +46,7 @@ export class AssertAction extends BaseAction {
                 if (process.platform === 'win32') {
                     const safeTarget = target.replace(/'/g, "''");
                     const psScript = `
+                        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
                         Add-Type @"
                         using System;
                         using System.Runtime.InteropServices;
