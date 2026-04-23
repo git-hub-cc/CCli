@@ -6,20 +6,18 @@ import { sysLogger, LogLevel } from './logger.js';
 import { AIMLParser } from '../parser/aiml-parser.js';
 import { LLMProviderFactory } from '../llm/factory.js';
 import { MockTestProvider } from '../llm/mock-test.js';
+import { SystemInterceptor } from '../parser/interceptor.js';
 
 export class TestEngine {
     private testDir: string;
 
     constructor() {
-        this.testDir = path.resolve(process.cwd(), 'test/cases');
+        this.testDir = path.resolve(process.cwd(), 'test/00cases');
         if (!fs.existsSync(this.testDir)) {
             fs.mkdirSync(this.testDir, { recursive: true });
         }
     }
 
-    /**
-     * 轻量级解析 YAML FrontMatter (无第三方依赖)
-     */
     private parseFrontmatter(text: string) {
         const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
         if (!match) return { meta: {}, body: text };
@@ -79,6 +77,13 @@ export class TestEngine {
                 const parsedNodes = AIMLParser.parse(body);
                 const feedbacks = await AIMLParser.executeNodes(parsedNodes, provider);
                 
+                const interceptResult = SystemInterceptor.intercept(feedbacks, 1);
+                
+                if (interceptResult.cleanFeedbacks.length > 0) {
+                    const rawFeedbackStr = interceptResult.cleanFeedbacks.join('\n\n');
+                    sysLogger.appendChat('Tool_Feedback', rawFeedbackStr);
+                }
+                
                 const expectStatus = meta.expect_status || 'success';
                 const expectKeywords = meta.expect_keywords || [];
                 
@@ -117,6 +122,8 @@ export class TestEngine {
                 console.log(chalk.red(`✖ 测试抛出未捕获异常: ${file}`));
                 console.log(chalk.red(err.message));
                 failCount++;
+            } finally {
+                sysLogger.flushActionTrace(file);
             }
         }
 

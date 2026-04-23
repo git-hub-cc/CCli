@@ -21,6 +21,7 @@ export class Logger {
     private recapDataFilePath: string = '';
     private browserLogDir: string = '';
     private isTestMode: boolean = false;
+    private traceBuffer: string[] = [];
 
     enableTestMode() {
         this.isTestMode = true;
@@ -85,6 +86,26 @@ export class Logger {
             case LogLevel.ERROR: formatted = chalk.red(`${prefix} ✖ ${msg}`); break;
         }
         console.log(formatted);
+    }
+
+    appendActionTrace(trace: string) {
+        const time = new Date().toLocaleTimeString();
+        this.traceBuffer.push(`[${time}] ${trace}`);
+    }
+
+    flushActionTrace(contextName: string = 'trace') {
+        if (this.traceBuffer.length === 0) return;
+        
+        if (this.isTestMode && this.sessionDir) {
+            const safeName = path.basename(contextName, path.extname(contextName));
+            const tracePath = path.join(this.sessionDir, `${safeName}_trace.log`);
+            fs.writeFileSync(tracePath, this.traceBuffer.join('\n'), 'utf-8');
+        } else if (this.chatFilePath) {
+            const traceContent = `### [${new Date().toLocaleTimeString()}] Action_Trace:\n\n\`\`\`text\n${this.traceBuffer.join('\n')}\n\`\`\`\n\n---\n\n`;
+            fs.appendFileSync(this.chatFilePath, traceContent, 'utf-8');
+        }
+        
+        this.traceBuffer = [];
     }
 
     private appendToFile(filePath: string, role: LogRole, content: string) {

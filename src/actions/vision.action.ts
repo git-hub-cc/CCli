@@ -30,7 +30,7 @@ export class VisionAction extends BaseAction {
             if (action === 'screenshot' || action === 'grid') {
                 const imgName = `screenshot_${Date.now()}.png`;
                 let imgPath = path.join(outputDir, imgName);
-                
+
                 // 执行跨平台物理截屏
                 await screenshot({ filename: imgPath });
 
@@ -47,16 +47,23 @@ export class VisionAction extends BaseAction {
                     type: 'vision',
                     content: `【系统自动反馈】已截取当前屏幕 ${action === 'grid' ? '(并覆盖物理网格)' : ''}，保存至: ${imgPath}，并已挂载至对话上下文。`
                 };
-            } 
+            }
             else if (action === 'ocr') {
                 const imgPath = path.join(outputDir, `ocr_temp_${Date.now()}.png`);
                 await screenshot({ filename: imgPath });
-                
+
+                const ocrModelDir = path.resolve(process.cwd(), '.ccli', 'ocr');
+                if (!fs.existsSync(ocrModelDir)) {
+                    fs.mkdirSync(ocrModelDir, { recursive: true });
+                }
+
                 sysLogger.log(LogLevel.INFO, '正在执行本地屏幕 OCR 文本识别...');
-                const worker = await createWorker('chi_sim+eng');
+                const worker = await createWorker('chi_sim+eng', 1, {
+                    langPath: ocrModelDir
+                });
                 const { data: { text } } = await worker.recognize(imgPath);
                 await worker.terminate();
-                
+
                 // 清理临时截图
                 fs.unlinkSync(imgPath);
 

@@ -64,6 +64,8 @@ export class AIMLParser {
                 const macroFilePath = path.resolve(PKG_ROOT, 'macros', `${node.tag}.md`);
                 if (fs.existsSync(macroFilePath)) {
                     sysLogger.log(LogLevel.ACTION, `识别到动态宏技能标签: <${node.tag}>，正在展开执行...`);
+                    sysLogger.appendActionTrace(`[MACRO-START] 展开宏技能 <${node.tag}> | 参数: ${node.content.substring(0, 50)}`);
+                    
                     try {
                         const macroRawContent = fs.readFileSync(macroFilePath, 'utf-8');
                         
@@ -99,24 +101,33 @@ export class AIMLParser {
                         const innerNodes = AIMLParser.parse(template);
                         const innerFeedbacks = await AIMLParser.executeNodes(innerNodes, provider);
                         feedbacks.push(...innerFeedbacks);
+                        
+                        sysLogger.appendActionTrace(`[MACRO-END] 宏技能 <${node.tag}> 执行完毕`);
                     } catch (err: any) {
                         sysLogger.log(LogLevel.ERROR, `动态宏技能 <${node.tag}> 展开执行失败: ${err.message}`);
+                        sysLogger.appendActionTrace(`[MACRO-ERROR] 宏技能 <${node.tag}> 异常: ${err.message}`);
                         feedbacks.push({ type: 'error', content: `【系统自动反馈：宏技能 <${node.tag}> 执行异常】\n${err.message}` });
                     }
                     continue;
                 }
 
                 sysLogger.log(LogLevel.WARN, `未识别的 AIML 标签: <${node.tag}>，已被忽略。`);
+                sysLogger.appendActionTrace(`[SKIP] 未知动作标签 <${node.tag}>`);
                 continue;
             }
 
             try {
+                sysLogger.appendActionTrace(`[START] 动作 <${node.tag}> | 属性: ${JSON.stringify(node.attributes)}`);
                 const feedback = await actionInstance.execute(node.attributes, node.content, provider);
                 if (feedback) {
                     feedbacks.push(feedback);
+                    sysLogger.appendActionTrace(`[END] 动作 <${node.tag}> 成功 | 返回类型: ${feedback.type}`);
+                } else {
+                    sysLogger.appendActionTrace(`[END] 动作 <${node.tag}> 成功 | 无状态返回`);
                 }
             } catch (err: any) {
                 sysLogger.log(LogLevel.ERROR, `<${node.tag}> 动作执行失败: ${err.message}`);
+                sysLogger.appendActionTrace(`[ERROR] 动作 <${node.tag}> 失败 | 异常: ${err.message}`);
 
                 let errorMsgStr = err.message || String(err);
                 if (errorMsgStr.length > localConfig.maxErrorLogLength) {

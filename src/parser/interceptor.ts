@@ -17,13 +17,18 @@ export class SystemInterceptor {
             restartKeepLast: 0
         };
 
+        if (feedbacks.length > 0) {
+            sysLogger.appendActionTrace(`[INTERCEPTOR-START] 开始分析 ${feedbacks.length} 个动作反馈结果 (深度: ${currentDepth})`);
+        }
+
         for (let fb of feedbacks) {
-            // 通过强类型标识处理特殊的系统指令
             if (fb.type === 'context_manage' && fb.payload) {
                 if (currentDepth > 1) {
                     sysLogger.log(LogLevel.WARN, '检测到 AI 在自循环执行动作中试图清理上下文，已拦截。');
+                    sysLogger.appendActionTrace(`[INTERCEPTOR-WARN] 拒绝深层自循环中的 context 清理请求`);
                     result.cleanFeedbacks.push('【系统自动反馈：动作拦截】子任务执行中禁止使用 <context> 标签，请继续当前任务或输出纯文本总结。');
                 } else {
+                    sysLogger.appendActionTrace(`[INTERCEPTOR-SIGNAL] 捕获到上下文重组请求: ${fb.payload.action}`);
                     result.needsRestartSession = true;
                     result.restartAction = fb.payload.action;
                     result.restartKeepLast = fb.payload.keepLast;
@@ -31,19 +36,24 @@ export class SystemInterceptor {
                 continue;
             }
 
-            // 处理询问动作产生的强行中断信号
             if (fb.type === 'interrupt') {
+                sysLogger.appendActionTrace(`[INTERCEPTOR-SIGNAL] 捕获到用户强制中断信号`);
                 throw new Error('USER_INTERRUPT');
             }
 
-            // 提取常规的显示文本
             if (fb.content) {
-                // 防御性监控：如果底层脚本抛出了明确的动作拒绝状态，打印警告日志提醒用户
                 if (fb.content.includes('【动作被拒绝】')) {
                     sysLogger.log(LogLevel.WARN, '触发系统防御拦截：AI 执行的动作由于前置状态不满足被底层拒绝。');
+                    sysLogger.appendActionTrace(`[INTERCEPTOR-WARN] 动作被拒绝: ${fb.content.substring(0, 50).replace(/\n/g, ' ')}...`);
+                } else {
+                    sysLogger.appendActionTrace(`[INTERCEPTOR-PASS] 收集有效反馈: ${fb.type}`);
                 }
                 result.cleanFeedbacks.push(fb.content);
             }
+        }
+
+        if (feedbacks.length > 0) {
+            sysLogger.appendActionTrace(`[INTERCEPTOR-END] 分析完毕，生成 ${result.cleanFeedbacks.length} 条清洗后反馈`);
         }
 
         return result;

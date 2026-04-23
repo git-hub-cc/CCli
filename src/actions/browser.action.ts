@@ -18,7 +18,7 @@ export class BrowserAction extends BaseAction {
             await page.bringToFront();
 
             if (action === 'goto') {
-                let url = attributes['url'] || content.trim();
+                let url = (attributes['url'] || content).trim();
                 if (!url) throw new Error('goto 操作缺少 url 参数');
                 if (!url.startsWith('http://') && !url.startsWith('https://')) {
                     url = 'https://' + url;
