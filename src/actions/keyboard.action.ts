@@ -35,6 +35,9 @@ export class KeyboardAction extends BaseAction {
                 } else if (lowerContent === '^a') {
                     await keyboard.pressKey(Key.LeftControl, Key.A);
                     await keyboard.releaseKey(Key.LeftControl, Key.A);
+                } else if (lowerContent === '^%w') {
+                    await keyboard.pressKey(Key.LeftControl, Key.LeftAlt, Key.W);
+                    await keyboard.releaseKey(Key.LeftControl, Key.LeftAlt, Key.W);
                 } else if (content === '{Enter}') {
                     await keyboard.pressKey(Key.Return);
                     await keyboard.releaseKey(Key.Return);

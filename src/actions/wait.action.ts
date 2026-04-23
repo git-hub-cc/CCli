@@ -36,15 +36,15 @@ export class WaitAction extends BaseAction {
             if (type === 'window') {
                 const target = attributes['target'];
                 if (!target) throw new Error('window 等待缺少 target 属性');
-                
+
                 if (process.platform === 'win32') {
                     const safeTarget = target.replace(/'/g, "''");
                     const checkInterval = 500;
                     const maxAttempts = Math.max(1, Math.floor(timeout / checkInterval));
-                    
+
                     for (let i = 0; i < maxAttempts; i++) {
                         const psScript = `
-                            $processes = Get-Process | Where-Object { $_.MainWindowTitle -match '${safeTarget}' }
+                            $processes = Get-Process | Where-Object { ($_.MainWindowTitle -match '${safeTarget}' -or $_.ProcessName -match '${safeTarget}') -and $_.MainWindowHandle -ne 0 }
                             if ($processes) { Write-Output "FOUND" } else { Write-Output "WAITING" }
                         `;
                         const { stdout } = await execa('powershell', ['-NoProfile', '-Command', psScript]);

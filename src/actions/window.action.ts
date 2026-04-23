@@ -1,6 +1,7 @@
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { execa } from 'execa';
+import { handleActivate } from './windows/activate.js';
 
 /**
  * 处理 <window> 标签：管理操作系统窗口生命周期与物理属性提取
@@ -20,6 +21,14 @@ export class WindowAction extends BaseAction {
         }
 
         sysLogger.log(LogLevel.ACTION, `准备执行窗口操作: ${action} -> ${target}`);
+
+        // 优先尝试特化唤醒逻辑（如快捷键唤醒）
+        if (action.toLowerCase() === 'activate') {
+            const specialResult = await handleActivate(target);
+            if (specialResult) {
+                return specialResult;
+            }
+        }
 
         try {
             if (process.platform === 'win32') {
@@ -43,11 +52,13 @@ export class WindowAction extends BaseAction {
                         public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
                     }
 "@
-                    $processes = Get-Process | Where-Object { $_.MainWindowTitle -match '${safeTarget}' -or $_.ProcessName -match '${safeTarget}' }
+                    $processes = Get-Process | Where-Object { ($_.MainWindowTitle -match '${safeTarget}' -or $_.ProcessName -match '${safeTarget}') -and $_.MainWindowHandle -ne 0 }
                     if (-not $processes) { Write-Output "NOT_FOUND"; exit 0 }
                     
-                    $hwnd = $processes[0].MainWindowHandle
-                    if ($hwnd -eq 0) { Write-Output "NO_HWND"; exit 0 }
+                    $validProcess = $processes | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+                    if (-not $validProcess) { Write-Output "NO_HWND"; exit 0 }
+                    
+                    $hwnd = $validProcess.MainWindowHandle
                     
                     $action = '${action}'.ToLower()
                     if ($action -eq 'activate') {
@@ -55,7 +66,7 @@ export class WindowAction extends BaseAction {
                         [Win32]::SetForegroundWindow($hwnd) | Out-Null
                         Write-Output "SUCCESS"
                     } elseif ($action -eq 'close') {
-                        $processes[0].CloseMainWindow() | Out-Null
+                        $validProcess.CloseMainWindow() | Out-Null
                         Write-Output "SUCCESS"
                     } elseif ($action -eq 'min') {
                         [Win32]::ShowWindowAsync($hwnd, 2) | Out-Null
@@ -71,7 +82,7 @@ export class WindowAction extends BaseAction {
                         [Win32]::GetWindowRect($hwnd, [ref]$rect) > $null
                         $w = $rect.Right - $rect.Left
                         $h = $rect.Bottom - $rect.Top
-                        $title = $processes[0].MainWindowTitle
+                        $title = $validProcess.MainWindowTitle
                         Write-Output "INFO|$title|$($rect.Left)|$($rect.Top)|$w|$h"
                     } else {
                         Write-Output "UNSUPPORTED"
