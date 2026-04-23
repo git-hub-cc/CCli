@@ -1,9 +1,10 @@
 import clipboard from 'clipboardy';
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
+import { execa } from 'execa';
 
 /**
- * 处理 <clipboard> 标签：读写系统剪贴板
+ * 处理 <clipboard> 标签：读写系统剪贴板，支持文本与文件
  */
 export class ClipboardAction extends BaseAction {
     tag = 'clipboard';
@@ -11,8 +12,8 @@ export class ClipboardAction extends BaseAction {
     async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const action = attributes['action'];
 
-        if (!action || !['read', 'write'].includes(action.toLowerCase())) {
-            throw new Error('<clipboard> 标签缺少合法的 action 属性 (read 或 write)');
+        if (!action || !['read', 'write', 'write_file'].includes(action.toLowerCase())) {
+            throw new Error('<clipboard> 标签缺少合法的 action 属性 (read 或 write 或 write_file)');
         }
 
         sysLogger.log(LogLevel.ACTION, `准备执行剪贴板操作: ${action}`);
@@ -32,6 +33,18 @@ export class ClipboardAction extends BaseAction {
                         type: 'clipboard',
                         content: `【系统自动反馈：剪贴板内容】\n${text}`
                     };
+                }
+            } else if (action.toLowerCase() === 'write_file') {
+                if (!content) throw new Error('写入文件操作需要提供文件绝对路径');
+                if (process.platform === 'win32') {
+                    await execa('powershell', ['-NoProfile', '-Command', `Set-Clipboard -Path "${content.trim()}"`]);
+                    sysLogger.log(LogLevel.SUCCESS, '已将文件写入系统剪贴板');
+                    return {
+                        type: 'clipboard',
+                        content: `【系统自动反馈】已成功将物理文件写入系统剪贴板。`
+                    };
+                } else {
+                    throw new Error('写文件到剪贴板暂仅支持 Windows 平台');
                 }
             } else {
                 if (content === undefined || content === null) {

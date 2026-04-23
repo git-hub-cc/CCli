@@ -21,14 +21,16 @@ export class MacroSkillPart implements IPromptPart {
                 const fileContent = fs.readFileSync(path.join(this.macroDir, file), 'utf-8');
                 const nameMatch = fileContent.match(/name:\s*(.+)/);
                 const descMatch = fileContent.match(/description:\s*(.+)/);
-                const contentMatch = fileContent.match(/content:\s*(.+)/);
+                // params 将被明确解析为该宏技能支持的 XML 属性
                 const attrMatch = fileContent.match(/params:\s*(.+)/);
                 const reqMatch = fileContent.match(/requires:\s*(.+)/);
+
+                const hasContentPlaceholder = fileContent.includes('{_content_}');
 
                 if (nameMatch && nameMatch[1] && descMatch && descMatch[1]) {
                     const name = nameMatch[1].trim();
                     const desc = descMatch[1].trim();
-                    const contentParam = contentMatch && contentMatch[1] ? contentMatch[1].trim() : '-';
+                    const contentParam = hasContentPlaceholder ? '长文本或代码正文' : '-';
                     const attrParam = attrMatch && attrMatch[1] ? attrMatch[1].trim() : '-';
                     const req = reqMatch && reqMatch[1] ? reqMatch[1].trim() : '-';
 

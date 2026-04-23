@@ -10,7 +10,7 @@ export class KeyboardAction extends BaseAction {
 
     async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const action = attributes['action'];
-        
+
         if (!action || action.toLowerCase() !== 'type') {
             throw new Error('<keyboard> 标签缺少合法的 action 属性 (目前仅支持 type)');
         }
@@ -35,6 +35,10 @@ export class KeyboardAction extends BaseAction {
                 } else if (lowerContent === '^a') {
                     await keyboard.pressKey(Key.LeftControl, Key.A);
                     await keyboard.releaseKey(Key.LeftControl, Key.A);
+                } else if (lowerContent === '^f') {
+                    // 新增：Ctrl + F 快捷键映射
+                    await keyboard.pressKey(Key.LeftControl, Key.F);
+                    await keyboard.releaseKey(Key.LeftControl, Key.F);
                 } else if (lowerContent === '^%w') {
                     await keyboard.pressKey(Key.LeftControl, Key.LeftAlt, Key.W);
                     await keyboard.releaseKey(Key.LeftControl, Key.LeftAlt, Key.W);

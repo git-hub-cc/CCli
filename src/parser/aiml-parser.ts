@@ -64,7 +64,7 @@ export class AIMLParser {
                 const macroFilePath = path.resolve(PKG_ROOT, 'macros', `${node.tag}.md`);
                 if (fs.existsSync(macroFilePath)) {
                     sysLogger.log(LogLevel.ACTION, `识别到动态宏技能标签: <${node.tag}>，正在展开执行...`);
-                    sysLogger.appendActionTrace(`[MACRO-START] 展开宏技能 <${node.tag}> | 参数: ${node.content.substring(0, 50)}`);
+                    sysLogger.appendActionTrace(`[MACRO-START] 展开宏技能 <${node.tag}> | 属性: ${JSON.stringify(node.attributes)}`);
                     
                     try {
                         const macroRawContent = fs.readFileSync(macroFilePath, 'utf-8');
@@ -77,26 +77,27 @@ export class AIMLParser {
                         // 移除文件顶部的 YAML Meta 头 (--- xxx ---)
                         let template = macroRawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
 
-                        // 注入 {0} 代表未切割的原始参数字符串
+                        // 注入 {_content_} 代表标签内部的文本内容
                         const rawArgValue = node.content
                             .replace(/`/g, '``')
                             .replace(/"/g, '`"')
                             .replace(/\$/g, '`$');
-                        template = template.replace(/\{0\}/g, () => rawArgValue);
+                        template = template.replace(/\{_content_\}/g, () => rawArgValue);
 
-                        // 按照逗号分割提取参数
-                        const args = node.content.split(',');
-                        for (let i = 0; i < args.length; i++) {
-                            args[i] = args[i]
+                        // 解析宏定义中的 params，映射到 XML 属性传参
+                        const attrMatch = macroRawContent.match(/params:\s*(.+)/);
+                        const paramNames = attrMatch && attrMatch[1] ? attrMatch[1].split(',').map(s => s.trim()) : [];
+                        
+                        for (let i = 0; i < paramNames.length; i++) {
+                            const paramName = paramNames[i];
+                            let argValue = node.attributes[paramName] || '';
+                            argValue = argValue
                                 .replace(/`/g, '``')
                                 .replace(/"/g, '`"')
                                 .replace(/\$/g, '`$');
 
-                            const argValue = args[i]?.trim() || '';
-                            template = template.replace(new RegExp(`\\{${i + 1}\\}`, 'g'), () => argValue);
+                            template = template.replace(new RegExp(`\\{${paramName}\\}`, 'g'), () => argValue);
                         }
-
-                        template = template.replace(/\{\d+\}/g, '');
 
                         const innerNodes = AIMLParser.parse(template);
                         const innerFeedbacks = await AIMLParser.executeNodes(innerNodes, provider);
