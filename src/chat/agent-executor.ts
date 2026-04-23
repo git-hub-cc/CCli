@@ -65,7 +65,7 @@ export class AgentExecutor {
 
                 // 清洗掉路径等无用噪声，作为纯净反馈注入给 AI
                 const cleanedFeedbacks = interceptResult.cleanFeedbacks.map(fb => {
-                    return fb.replace(/\n?(?:全量)?日志归档：.*/g, '').trim();
+                    return fb.replace(/\n?- 💾 (?:全量)?日志归档：.*/g, '').trim();
                 });
                 const cleanedFeedbackStr = cleanedFeedbacks.join('\n\n');
 

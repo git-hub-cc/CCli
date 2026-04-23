@@ -117,9 +117,9 @@ export class ShellAction extends BaseAction {
             }
 
             if (logFile) {
-                feedback += `\n日志归档： [${logFile.fileName}](${logFile.relativePath})`;
+                feedback += `\n- 💾 日志归档： [${logFile.fileName}](${logFile.relativePath})`;
                 if (logFile.fullRelativePath) {
-                    feedback += `\n全量日志归档：[${logFile.fileName}](${logFile.fullRelativePath})`;
+                    feedback += `\n- 💾 全量日志归档：[${logFile.fileName}](${logFile.fullRelativePath})`;
                 }
             }
 
@@ -150,9 +150,9 @@ export class ShellAction extends BaseAction {
 
             let errorFeedback = `终端命令异常退出:\n${truncStderr}`;
             if (logFile) {
-                errorFeedback += `\n\n日志归档： [${logFile.fileName}](${logFile.relativePath})`;
+                errorFeedback += `\n\n- 💾 日志归档： [${logFile.fileName}](${logFile.relativePath})`;
                 if (logFile.fullRelativePath) {
-                    errorFeedback += `\n全量日志归档：[${logFile.fileName}](${logFile.fullRelativePath})`;
+                    errorFeedback += `\n- 💾 全量日志归档：[${logFile.fileName}](${logFile.fullRelativePath})`;
                 }
             }
             throw new Error(errorFeedback);
