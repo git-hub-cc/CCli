@@ -2,7 +2,7 @@ import { execa } from 'execa';
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { localConfig } from '../core/config.js';
-import { getConsoleType } from '../core/utils.js';
+import { getConsoleType, injectExecutionEnv } from '../core/utils.js';
 
 /**
  * 处理 <shell> 标签：执行终端命令行操作
@@ -18,8 +18,9 @@ export class ShellAction extends BaseAction {
         const command = content.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
         const mode = attributes['mode'] || 'sync';
         const isDetached = mode === 'detached';
+        const isLaunch = mode === 'launch';
 
-        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}${isDetached ? ' (新独立后台窗口模式)' : ''}`);
+        sysLogger.log(LogLevel.ACTION, `准备执行终端命令: ${command}${isDetached ? ' (新独立后台窗口模式)' : isLaunch ? ' (直接拉起无头/GUI模式)' : ''}`);
 
         const truncateLog = (log: string) => {
             if (!log) return '';
@@ -30,11 +31,13 @@ export class ShellAction extends BaseAction {
 
         const currentConsole = getConsoleType();
 
-        if (isDetached) {
+        if (isDetached || isLaunch) {
             try {
                 let winCmd = '';
                 if (process.platform === 'win32') {
-                    if (currentConsole.includes('powershell')) {
+                    if (isLaunch) {
+                        winCmd = `cmd.exe /c "start \"\" /NORMAL ${command}"`;
+                    } else if (currentConsole.includes('powershell')) {
                         const psExe = currentConsole.includes('7') ? 'pwsh' : 'powershell';
                         let innerCmd = '';
                         if (/[$;=|&]/.test(command)) {
@@ -48,21 +51,34 @@ export class ShellAction extends BaseAction {
                         winCmd = `cmd.exe /c "start /min cmd.exe /k ${command.replace(/"/g, '\\"')}"`;
                     }
                 } else if (process.platform === 'darwin') {
-                    winCmd = `osascript -e 'tell app "Terminal" to do script "${command.replace(/"/g, '\\"')}"'`;
+                    if (isLaunch) {
+                        winCmd = `nohup ${command} > /dev/null 2>&1 &`;
+                    } else {
+                        winCmd = `osascript -e 'tell app "Terminal" to do script "${command.replace(/"/g, '\\"')}"'`;
+                    }
                 } else {
-                    winCmd = `x-terminal-emulator -e "${command.replace(/"/g, '\\"')}"`;
+                    if (isLaunch) {
+                        winCmd = `nohup ${command} > /dev/null 2>&1 &`;
+                    } else {
+                        winCmd = `x-terminal-emulator -e "${command.replace(/"/g, '\\"')}"`;
+                    }
                 }
 
-                execa(winCmd, { shell: true, detached: true }).unref();
+                const execaOptions: any = { shell: true, detached: true, env: injectExecutionEnv(command) };
+                if (isLaunch) {
+                    execaOptions.stdio = 'ignore';
+                }
 
-                sysLogger.log(LogLevel.SUCCESS, `已唤起新独立窗口执行服务命令`);
+                execa(winCmd, execaOptions).unref();
+
+                sysLogger.log(LogLevel.SUCCESS, `已唤起新独立窗口或后台进程执行服务命令`);
                 return {
                     type: 'shell',
-                    content: `【系统自动反馈：命令执行结果】\n已成功在独立的物理新窗口启动了该服务或命令。当前主进程未被阻塞，请继续完成下一步任务。`
+                    content: `【系统自动反馈：命令执行结果】\n已成功在独立的物理新窗口或后台启动了该服务或命令。当前主进程未被阻塞，请继续完成下一步任务。`
                 };
             } catch (err: any) {
-                sysLogger.log(LogLevel.ERROR, `唤起新窗口异常: ${err.message}`);
-                throw new Error(`唤起新窗口异常:\n${err.message}`);
+                sysLogger.log(LogLevel.ERROR, `唤起后台进程异常: ${err.message}`);
+                throw new Error(`唤起后台进程异常:\n${err.message}`);
             }
         }
 
@@ -84,7 +100,7 @@ export class ShellAction extends BaseAction {
                 }
             }
 
-            const childProcess = execa(finalCommand, { shell: shellOpt });
+            const childProcess = execa(finalCommand, { shell: shellOpt, env: injectExecutionEnv(command) });
             childProcess.stdout?.pipe(process.stdout);
             childProcess.stderr?.pipe(process.stderr);
 

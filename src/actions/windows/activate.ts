@@ -12,20 +12,21 @@ export async function handleActivate(target: string): Promise<ActionResult | nul
 
     if (target === 'Weixin') {
         shortcut = '^%w'; // 微信默认: Ctrl + Alt + W
-    } 
+    }
 
     if (shortcut) {
         sysLogger.log(LogLevel.INFO, `检测到特化目标 ${target}，尝试通过全局快捷键 [${shortcut}] 唤醒`);
-        
+
         // 执行键盘模拟动作
         await keyboardAction.execute({ action: 'type' }, shortcut);
-        
+
         // 兜底策略：如果快捷键未生效，通过进程检测与绝对路径启动微信
         if (target === 'Weixin' && process.platform === 'win32') {
             sysLogger.log(LogLevel.INFO, `执行快捷键后，尝试通过默认路径兜底唤醒微信进程`);
             try {
+                // 【修复核心】：同时检测 WeChat 和 Weixin 进程，避免误判
                 const psScript = `
-                    $process = Get-Process WeChat -ErrorAction SilentlyContinue
+                    $process = Get-Process -Name "WeChat", "Weixin" -ErrorAction SilentlyContinue
                     if (-not $process) {
                         $paths = @(
                             "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe",

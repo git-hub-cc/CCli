@@ -4,6 +4,7 @@ import vm from 'vm';
 import { execa } from 'execa';
 import fs from 'fs';
 import path from 'path';
+import { injectExecutionEnv } from '../core/utils.js';
 
 export class SandboxAction extends BaseAction {
     tag = 'sandbox';
@@ -52,7 +53,7 @@ export class SandboxAction extends BaseAction {
                 try {
                     const { stdout, stderr } = await execa('python', [tempFile], { 
                         timeout: 15000,
-                        env: { PYTHONIOENCODING: 'utf-8' }
+                        env: injectExecutionEnv('python')
                     });
                     fs.unlinkSync(tempFile);
                     sysLogger.log(LogLevel.SUCCESS, `沙箱代码 (Python) 执行完毕`);
