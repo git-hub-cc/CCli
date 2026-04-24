@@ -18,7 +18,8 @@ export const localConfig = {
     defaultApiKey: '',
     defaultModel: 'deepseek-r1-0528',
     siliconflowApiKey: '',
-    siliconflowModel: 'deepseek-ai/DeepSeek-V2.5'
+    siliconflowModel: 'deepseek-ai/DeepSeek-V2.5',
+    maxBinaryUploads: { default: 3 } as Record<string, number>
 };
 
 const parseConfig = (filePath: string) => {
@@ -62,6 +63,17 @@ const parseConfig = (filePath: string) => {
         }
         if (key.trim() === 'SILICONFLOW_MODEL' && value) {
             localConfig.siliconflowModel = value;
+        }
+        if (key.trim() === 'MAX_BINARY_UPLOADS' && value) {
+            const limits: Record<string, number> = {};
+            value.split(',').forEach(pair => {
+                const [model, num] = pair.split(':');
+                if (model && num) {
+                    limits[model.trim().toLowerCase()] = parseInt(num.trim(), 10) || 3;
+                }
+            });
+            if (!limits['default']) limits['default'] = 3;
+            localConfig.maxBinaryUploads = limits;
         }
     });
 };

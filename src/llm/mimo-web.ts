@@ -175,11 +175,19 @@ export class MimoWebProvider implements ILLMProvider {
                 const fileName = path.basename(processedPath);
                 const ext = path.extname(fileName).toLowerCase();
 
-                let mimeType = 'text/plain';
+                let mimeType = 'application/octet-stream';
                 if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
-                    mimeType = `image/${ext.replace('.', '')}`;
+                    mimeType = `image/${ext.replace('.', '') === 'jpg' ? 'jpeg' : ext.replace('.', '')}`;
+                } else if (['.txt', '.md', '.json', '.js', '.ts', '.css', '.html'].includes(ext)) {
+                    mimeType = 'text/plain';
                 } else if (ext === '.pdf') {
                     mimeType = 'application/pdf';
+                } else if (ext === '.docx') {
+                    mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                } else if (ext === '.xlsx') {
+                    mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                } else if (ext === '.zip') {
+                    mimeType = 'application/zip';
                 }
 
                 await this.page.evaluate(async ({ base64, name, mimeType }) => {

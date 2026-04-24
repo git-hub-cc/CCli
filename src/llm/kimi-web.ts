@@ -9,7 +9,7 @@ import { addGridToImage } from '../core/image-processor.js';
 import { BrowserDaemon } from './browser-daemon.js';
 
 const AUTH_DIR = path.join(os.homedir(), '.ccli', 'profiles', 'kimi');
-const CDP_PORT = 9229; // 为 Kimi 分配独立端口，避免与其他模型冲突
+const CDP_PORT = 9229;
 
 export class KimiWebProvider implements ILLMProvider {
     name = 'KimiWeb';
@@ -100,7 +100,6 @@ export class KimiWebProvider implements ILLMProvider {
                 await this.page.evaluate(() => navigator.clipboard.writeText(''));
                 await this.page.bringToFront();
 
-                // ✅ 正确代码（去除标签名限制，直接匹配 icon-button 类或包含特定 SVG 的元素）
                 const copyBtn = this.page.locator('.icon-button:has(svg[name="Copy"]), [title*="复制"], [aria-label*="复制"]').last();
 
                 await copyBtn.hover({ force: true }).catch(() => {});
@@ -179,11 +178,19 @@ export class KimiWebProvider implements ILLMProvider {
                 const fileName = path.basename(processedPath);
                 const ext = path.extname(fileName).toLowerCase();
 
-                let mimeType = 'text/plain';
+                let mimeType = 'application/octet-stream';
                 if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
-                    mimeType = `image/${ext.replace('.', '')}`;
+                    mimeType = `image/${ext.replace('.', '') === 'jpg' ? 'jpeg' : ext.replace('.', '')}`;
+                } else if (['.txt', '.md', '.json', '.js', '.ts', '.css', '.html'].includes(ext)) {
+                    mimeType = 'text/plain';
                 } else if (ext === '.pdf') {
                     mimeType = 'application/pdf';
+                } else if (ext === '.docx') {
+                    mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                } else if (ext === '.xlsx') {
+                    mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                } else if (ext === '.zip') {
+                    mimeType = 'application/zip';
                 }
 
                 await this.page.evaluate(async ({ base64, name, mimeType }) => {

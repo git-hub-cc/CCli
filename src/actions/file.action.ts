@@ -5,16 +5,16 @@ import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import type { ILLMProvider } from '../llm/interface.js';
 import { ContextManager } from '../core/context-manager.js';
+import { localConfig } from '../core/config.js';
 
 /**
- * 处理 <file> 标签：全量写入、增量修改、本地搜索、探测树结构、批量打包挂载
+ * 处理 <file> 标签：全量写入、增量修改、本地搜索、探测树结构、批量打包挂载、二进制挂载
  */
 export class FileAction extends BaseAction {
     tag = 'file';
 
     async execute(attributes: Record<string, string>, content: string, provider?: ILLMProvider): Promise<ActionResult> {
         const rawPath = attributes['path'];
-        // 兼容处理老版本的 type 参数
         const action = attributes['action'] || attributes['type'] || 'write';
 
         if (!rawPath) {
@@ -38,6 +38,8 @@ export class FileAction extends BaseAction {
                     return await this.handleTree(rawPath);
                 case 'pack':
                     return await this.handlePack(rawPath, provider);
+                case 'upload':
+                    return await this.handleUpload(rawPath, provider);
                 default:
                     throw new Error(`不支持的文件操作模式: ${action}`);
             }
@@ -73,50 +75,65 @@ export class FileAction extends BaseAction {
         }
 
         const originalContent = fs.readFileSync(targetPath, 'utf-8');
-        const patchResult = this.applySimpleDiff(originalContent, cleanContent);
+        const patchResult = this.applyBlockDiff(originalContent, cleanContent);
 
         if (patchResult.changed) {
             fs.writeFileSync(targetPath, patchResult.content, 'utf-8');
             sysLogger.log(LogLevel.SUCCESS, `文件增量修改成功: ${targetPath}`);
             return {
                 type: 'file',
-                content: `【系统自动反馈：本地文件操作结果】\n文件 \`${rawPath}\` 已根据 diff 格式成功应用了局部修改。`
+                content: `【系统自动反馈：本地文件操作结果】\n文件 \`${rawPath}\` 已成功应用了局部修改。`
             };
         } else {
             throw new Error("提供的 diff 块无法匹配原文内容。请检查上下文是否精确，或者退回使用 action=\"write\" 全量重写。");
         }
     }
 
-    private applySimpleDiff(originalContent: string, diffContent: string): { changed: boolean, content: string } {
-        const lines = diffContent.split('\n');
-        let searchLines: string[] = [];
-        let replaceLines: string[] = [];
+    private applyBlockDiff(originalContent: string, diffContent: string): { changed: boolean, content: string } {
+        const blockRegex = /<<<< SEARCH\r?\n([\s\S]*?)\r?\n====\r?\n([\s\S]*?)\r?\n>>>> REPLACE/g;
+        let match;
+        let currentContent = originalContent.replace(/\r\n/g, '\n');
+        let changed = false;
+        let matchCount = 0;
 
-        for (const line of lines) {
-            if (line.startsWith('@@')) continue;
-            if (line.startsWith('-') && !line.startsWith('---')) {
-                searchLines.push(line.substring(1).replace(/\r$/, ''));
-            } else if (line.startsWith('+') && !line.startsWith('+++')) {
-                replaceLines.push(line.substring(1).replace(/\r$/, ''));
+        while ((match = blockRegex.exec(diffContent)) !== null) {
+            matchCount++;
+            let searchBlock = match[1];
+            let replaceBlock = match[2];
+
+            searchBlock = searchBlock.replace(/\r\n/g, '\n');
+            replaceBlock = replaceBlock.replace(/\r\n/g, '\n');
+
+            const exactSearch = searchBlock.trim();
+            const exactReplace = replaceBlock.trim();
+
+            if (!exactSearch) continue;
+
+            if (currentContent.includes(exactSearch)) {
+                currentContent = currentContent.replace(exactSearch, exactReplace);
+                changed = true;
+            } else {
+                const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const searchLines = exactSearch.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                
+                if (searchLines.length > 0) {
+                    const regexStr = searchLines.map(escapeRegExp).join('\\s+');
+                    const fuzzyRegex = new RegExp(regexStr);
+                    const fuzzyMatch = currentContent.match(fuzzyRegex);
+                    
+                    if (fuzzyMatch) {
+                        currentContent = currentContent.replace(fuzzyMatch[0], exactReplace);
+                        changed = true;
+                    }
+                }
             }
         }
 
-        if (searchLines.length === 0 && replaceLines.length === 0) {
-            return { changed: false, content: originalContent };
+        if (matchCount === 0) {
+            throw new Error("未检测到标准的 <<<< SEARCH ==== >>>> REPLACE 块结构，请严格遵循格式要求输出。");
         }
 
-        const searchText = searchLines.join('\n');
-        const replaceText = replaceLines.join('\n');
-
-        const normalizedOriginal = originalContent.replace(/\r\n/g, '\n');
-        const normalizedSearch = searchText.replace(/\r\n/g, '\n');
-
-        if (normalizedOriginal.includes(normalizedSearch)) {
-            const finalContent = normalizedOriginal.replace(normalizedSearch, replaceText);
-            return { changed: true, content: finalContent };
-        }
-
-        return { changed: false, content: originalContent };
+        return { changed, content: currentContent };
     }
 
     private async handleSearch(rawPath: string, keyword: string): Promise<ActionResult> {
@@ -271,6 +288,41 @@ export class FileAction extends BaseAction {
         return {
             type: 'file',
             content: `【系统自动反馈：批量打包成功】\n共提取 ${validFiles.length} 个文本文件，跳过二进制 ${binaryCount} 项。\n已将内容合并至 \`res.md\` 并成功挂载。`
+        };
+    }
+
+    private async handleUpload(rawPath: string, provider?: ILLMProvider): Promise<ActionResult> {
+        if (!provider) {
+            throw new Error('当前环境缺少底层模型驱动，无法执行文件实体挂载。');
+        }
+
+        const targetPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(process.cwd(), rawPath);
+        if (!fs.existsSync(targetPath)) {
+            throw new Error(`文件不存在: ${targetPath}`);
+        }
+
+        const providerName = provider.name.toLowerCase().replace('web', '').replace('api', '');
+        const limits = localConfig.maxBinaryUploads;
+        const maxUploads = limits[providerName] !== undefined ? limits[providerName] : (limits['default'] || 3);
+
+        if (ContextManager.activeInstance) {
+            if (ContextManager.activeInstance.binaryUploadCount >= maxUploads) {
+                return {
+                    type: 'file',
+                    content: `【动作被拒绝】已达到当前模型 (${provider.name}) 允许的最大二进制文件挂载数量 (${maxUploads}个)，请清理上下文后再试。`
+                };
+            }
+        }
+
+        await provider.uploadFile(targetPath, false);
+
+        if (ContextManager.activeInstance) {
+            ContextManager.activeInstance.binaryUploadCount++;
+        }
+
+        return {
+            type: 'file',
+            content: `【系统自动反馈】实体文件已成功上传/挂载至当前会话上下文。`
         };
     }
 }

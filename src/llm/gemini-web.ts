@@ -173,6 +173,7 @@ export class GeminiWebProvider implements ILLMProvider {
             await uploadBtn.click();
 
             const fileChooser = await fileChooserPromise;
+            // Gemini 的原生文件输入支持文本、图片及常见二进制文件（如 pdf, docx 等）
             await fileChooser.setFiles(processedPath);
 
             await this.page.waitForTimeout(3500);

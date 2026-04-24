@@ -20,6 +20,7 @@ export class ContextManager {
     private encoder: any;
     private baseTokens: number = 0;
     private extraTokens: number = 0;
+    public binaryUploadCount: number = 0;
 
     constructor() {
         ContextManager.activeInstance = this;
@@ -115,6 +116,7 @@ export class ContextManager {
             const lastUser = this.chatHistory.pop();
             this.chatHistory.length = 0;
             this.extraTokens = 0;
+            this.binaryUploadCount = 0;
             if (lastUser) this.chatHistory.push(lastUser);
         } else if (action === 'trim') {
             const keepCount = (keepLast * 2) + 1;
