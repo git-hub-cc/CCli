@@ -62,7 +62,7 @@ export class AssertAction extends BaseAction {
                         $sb = New-Object System.Text.StringBuilder 500
                         [Win32]::GetWindowText($hwnd, $sb, $sb.Capacity) | Out-Null
                         $title = $sb.ToString()
-                        if ($title -match '${safeTarget}') { Write-Output "PASS" } else { Write-Output "FAIL|$title" }
+                        if ($title -like '*${safeTarget}*') { Write-Output "PASS" } else { Write-Output "FAIL|$title" }
                     `;
                     
                     const checkInterval = 500;

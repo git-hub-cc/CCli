@@ -52,7 +52,7 @@ export class WindowAction extends BaseAction {
                         public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
                     }
 "@
-                    $processes = Get-Process | Where-Object { ($_.MainWindowTitle -match '${safeTarget}' -or $_.ProcessName -match '${safeTarget}') -and $_.MainWindowHandle -ne 0 }
+                    $processes = Get-Process | Where-Object { ($_.MainWindowTitle -like '*${safeTarget}*' -or $_.ProcessName -like '*${safeTarget}*') -and $_.MainWindowHandle -ne 0 }
                     if (-not $processes) { Write-Output "NOT_FOUND"; exit 0 }
                     
                     $validProcess = $processes | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1

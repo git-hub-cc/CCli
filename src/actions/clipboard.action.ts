@@ -37,7 +37,11 @@ export class ClipboardAction extends BaseAction {
             } else if (action.toLowerCase() === 'write_file') {
                 if (!content) throw new Error('写入文件操作需要提供文件绝对路径');
                 if (process.platform === 'win32') {
-                    await execa('powershell', ['-NoProfile', '-Command', `Set-Clipboard -Path "${content.trim()}"`]);
+                    let cleanPath = content.trim();
+                    if ((cleanPath.startsWith('"') && cleanPath.endsWith('"')) || (cleanPath.startsWith("'") && cleanPath.endsWith("'"))) {
+                        cleanPath = cleanPath.slice(1, -1);
+                    }
+                    await execa('powershell', ['-NoProfile', '-Command', `Set-Clipboard -Path "${cleanPath}"`]);
                     sysLogger.log(LogLevel.SUCCESS, '已将文件写入系统剪贴板');
                     return {
                         type: 'clipboard',
