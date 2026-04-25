@@ -11,7 +11,7 @@ export class MouseAction extends BaseAction {
     async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const action = attributes['action'];
         if (!action) {
-            throw new Error('<mouse> 标签缺少必填属性 action (支持: click, drag, hover, scroll)');
+            throw new Error('<mouse> 标签缺少必填属性 action (支持: click, double_click, drag, hover, scroll)');
         }
 
         sysLogger.log(LogLevel.ACTION, `准备执行物理鼠标操作: ${action}`);
@@ -39,6 +39,20 @@ export class MouseAction extends BaseAction {
                     await mouse.click(btn);
                     sysLogger.log(LogLevel.SUCCESS, `鼠标物理点击完成 (坐标: ${x},${y} 按键: ${attributes['btn'] || 'left'})`);
                     return { type: 'mouse', content: `【系统自动反馈】物理鼠标已在 (${x}, ${y}) 完成点击操作。` };
+                }
+
+                case 'double_click': {
+                    const x = parseInt(attributes['x'] || '0', 10);
+                    const y = parseInt(attributes['y'] || '0', 10);
+                    const btn = getButton(attributes['btn']);
+                    
+                    if (!isNaN(x) && !isNaN(y)) {
+                        await mouse.setPosition(new Point(x, y));
+                    }
+                    
+                    await mouse.doubleClick(btn);
+                    sysLogger.log(LogLevel.SUCCESS, `鼠标物理双击完成 (坐标: ${x},${y} 按键: ${attributes['btn'] || 'left'})`);
+                    return { type: 'mouse', content: `【系统自动反馈】物理鼠标已在 (${x}, ${y}) 完成双击操作。` };
                 }
                 
                 case 'drag': {
@@ -68,6 +82,10 @@ export class MouseAction extends BaseAction {
                     
                     if (dir === 'up') {
                         await mouse.scrollUp(amount);
+                    } else if (dir === 'left') {
+                        await mouse.scrollLeft(amount);
+                    } else if (dir === 'right') {
+                        await mouse.scrollRight(amount);
                     } else {
                         await mouse.scrollDown(amount);
                     }
