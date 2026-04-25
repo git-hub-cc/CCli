@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { execa } from 'execa';
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
+import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
@@ -13,7 +14,7 @@ export class UiaAction extends BaseAction {
     async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const action = (attributes['action'] || '').toLowerCase();
         const target = attributes['target'];
-        
+
         if (!action) {
             throw new Error('<uia> 标签缺少必填属性 action (scan/click/fill/scroll)');
         }
@@ -26,11 +27,11 @@ export class UiaAction extends BaseAction {
         try {
             const scriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'uia-bridge.py');
             const args = ['--action', action, '--target', target];
-            
+
             if (attributes['id']) {
                 args.push('--id', attributes['id']);
             }
-            
+
             const value = attributes['value'] || content;
             if (value) {
                 args.push('--value', value);
@@ -56,11 +57,100 @@ export class UiaAction extends BaseAction {
                 if (elements.length === 0) {
                     return { type: 'uia', content: `【系统自动反馈】未在窗口 "${target}" 可视区域内检测到有效的交互元素。` };
                 }
-                
+
                 const formatList = elements.map((e: any) => `[${e.id}] ${e.type} - "${e.name}"`);
+
+                let htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { background: #1a1a1a; color: #00ffff; margin: 0; padding: 0; font-family: sans-serif; }
+        .control-box {
+            position: absolute;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            background: rgba(0, 255, 255, 0.05);
+            box-sizing: border-box;
+            pointer-events: auto;
+            transition: all 0.1s;
+        }
+        .control-box:hover {
+            border: 2px solid #fff;
+            background: rgba(0, 255, 255, 0.3);
+            z-index: 9999 !important;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        .id-tag {
+            background: #007acc;
+            color: white;
+            padding: 1px 3px;
+            font-size: 10px;
+            font-weight: bold;
+            position: absolute;
+            left: -1px;
+            top: -1px;
+            white-space: nowrap;
+        }
+        .content-text {
+            font-size: 10px;
+            color: #fff;
+            position: absolute;
+            width: calc(100% - 4px);
+            left: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .content-text.centered {
+            bottom: auto;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: center;
+            opacity: 1;
+        }
+        .content-text.bottom {
+            bottom: 1px;
+            opacity: 0.8;
+            font-size: 9px;
+        }
+    </style>
+</head>
+<body>`;
+
+                elements.forEach((e: any) => {
+                    if (e.bbox && e.bbox.w > 0 && e.bbox.h > 0) {
+                        const isText = e.type.includes('Text');
+                        const titleInfo = `[${e.id}] ${e.type}\nName: ${e.name}`;
+
+                        let innerHtml = '';
+                        if (isText && e.name) {
+                            innerHtml = `<span class="content-text centered">${e.name}</span>`;
+                        } else {
+                            innerHtml = `<span class="id-tag">[${e.id}]</span>`;
+                        }
+
+                        htmlContent += `
+                        <div class="control-box" title="${titleInfo.replace(/"/g, '&quot;')}"
+                             style="left:${e.bbox.x}px; top:${e.bbox.y}px; width:${e.bbox.w}px; height:${e.bbox.h}px; z-index:${100 - (e.bbox.w * e.bbox.h / 10000)};">
+                            ${innerHtml}
+                        </div>`;
+                    }
+                });
+
+                htmlContent += `</body></html>`;
+
+                const logDir = process.env.CCLI_SESSION_DIR || path.resolve(process.cwd(), '.ccli/logs');
+                if (!fs.existsSync(logDir)) {
+                    fs.mkdirSync(logDir, { recursive: true });
+                }
+
+                const reportPath = path.resolve(logDir, 'uia_report.html');
+                fs.writeFileSync(reportPath, htmlContent);
+
                 return {
                     type: 'uia',
-                    content: `【系统自动反馈：UIA 交互元素扫描结果】\n已为目标窗口 "${target}" 分配短 ID。\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill" 并传入 id 执行后续操作。`
+                    content: `【系统自动反馈：UIA 交互元素扫描结果】\n已为目标窗口 "${target}" 分配短 ID。可视化映射（科技蓝配色）已保存至 \`${reportPath}\`。\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill" 并传入 id 执行后续操作。`
                 };
             }
 

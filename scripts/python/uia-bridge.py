@@ -2,6 +2,7 @@ import sys
 import json
 import argparse
 import subprocess
+import time
 
 # --- 依赖自动安装模块 ---
 def ensure_dependencies():
@@ -33,13 +34,49 @@ def get_window(target):
                 return win
     return None
 
+def is_valid_element(control):
+    """
+    清洗规则：过滤掉没有名字的纯布局容器，减少大模型的噪音
+    """
+    # 新增：全局拦截并丢弃所有 TextControl
+    if control.ControlType == auto.ControlType.TextControl:
+        return False
+
+    if control.ControlType in [auto.ControlType.PaneControl, auto.ControlType.WindowControl, auto.ControlType.GroupControl]:
+        return bool(control.Name and control.Name.strip())
+    return True
+
 def get_control_by_id(window, target_id):
     current_id = 1
-    for control, depth in auto.WalkControl(window, includeTop=False, maxDepth=7):
-        if control.ControlType not in [auto.ControlType.PaneControl, auto.ControlType.WindowControl, auto.ControlType.GroupControl]:
-            if current_id == target_id:
-                return control
-            current_id += 1
+    # 队列中同时记录节点和其所处的深度：(control, depth)
+    queue = [(window, 0)]
+    start_time = time.time()
+    max_depth = 12
+    
+    while queue:
+        if time.time() - start_time > 10:
+            break
+        curr, depth = queue.pop(0)
+        
+        # 深度限制护栏：超过指定层级不再继续下钻
+        if depth >= max_depth:
+            continue
+            
+        try:
+            children = curr.GetChildren()
+        except Exception:
+            continue
+            
+        for c in children:
+            rect = c.BoundingRectangle
+            if rect and rect.width() > 0 and rect.height() > 0:
+                if is_valid_element(c):
+                    if current_id == target_id:
+                        return c
+                    current_id += 1
+                # 将子节点压入队列，深度 +1
+                queue.append((c, depth + 1))
+                
     return None
 
 def action_scan(target):
@@ -50,19 +87,49 @@ def action_scan(target):
     win.SetActive()
     elements = []
     current_id = 1
+    # 队列中同时记录节点和其所处的深度：(control, depth)
+    queue = [(win, 0)]
+    start_time = time.time()
+    
+    max_depth = 20       # 限制最大扫描深度为 20 层
+    max_elements = 600   # 限制最多提取 600 个有效元素，防止大模型上下文爆炸
 
-    # 适当放宽扫描深度至 7，以适配微信、浏览器等嵌套较深的现代应用
-    for control, depth in auto.WalkControl(win, includeTop=False, maxDepth=7):
-        if control.ControlType not in [auto.ControlType.PaneControl, auto.ControlType.WindowControl, auto.ControlType.GroupControl]:
-            name = control.Name.strip()[:40] if control.Name else ""
-            elements.append({
-                "id": current_id,
-                "type": control.ControlTypeName,
-                "name": name
-            })
-            current_id += 1
-            if current_id > 150:
-                break
+    while queue:
+        if time.time() - start_time > 10:
+            break
+        curr, depth = queue.pop(0)
+        
+        # 深度限制护栏：超过指定层级不再继续下钻
+        if depth >= max_depth:
+            continue
+            
+        try:
+            children = curr.GetChildren()
+        except Exception:
+            continue
+            
+        for c in children:
+            rect = c.BoundingRectangle
+            if rect and rect.width() > 0 and rect.height() > 0:
+                if is_valid_element(c):
+                    name = c.Name.strip()[:40] if c.Name else ""
+                    bbox = {"x": rect.left, "y": rect.top, "w": rect.width(), "h": rect.height()}
+                    
+                    elements.append({
+                        "id": current_id,
+                        "type": c.ControlTypeName,
+                        "name": name,
+                        "bbox": bbox
+                    })
+                    current_id += 1
+                    
+                    if current_id > max_elements:
+                        break
+                # 将子节点压入队列，深度 +1
+                queue.append((c, depth + 1))
+                
+        if current_id > max_elements:
+            break
 
     return {"status": "success", "elements": elements}
 

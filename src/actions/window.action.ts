@@ -93,7 +93,7 @@ export class WindowAction extends BaseAction {
                 const out = stdout.trim();
 
                 if (out === 'NOT_FOUND' || out === 'NO_HWND') {
-                    throw new Error(`未找到匹配的窗口或窗口无句柄: ${target}`);
+                    throw new Error(`未找到匹配的运行中窗口或句柄: ${target}，动态检索也未发现该应用，当前环境可能不支持或未安装。`);
                 }
 
                 if (out.startsWith('INFO|')) {
@@ -101,13 +101,6 @@ export class WindowAction extends BaseAction {
                     return {
                         type: 'window',
                         content: `【系统自动反馈：窗口物理信息】\n目标窗口: ${title}\n绝对坐标 (X, Y): ${x}, ${y}\n物理尺寸 (宽 x 高): ${w} x ${h}\n`
-                    };
-                }
-
-                if (action.toLowerCase() === 'extract_text') {
-                    return {
-                        type: 'window',
-                        content: `【系统自动反馈】提取传统窗口纯文本需要视觉配合，请结合 <vision action="ocr"> 标签进行图像层面的抓取。`
                     };
                 }
 
