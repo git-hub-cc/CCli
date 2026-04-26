@@ -71,7 +71,7 @@ export class ContextManager {
     private loadHintPrompt() {
         this.cachedHintPrompt = '【系统隐式提示】当前上下文 Token 占用已达预警阈值。为了防止截断或遗忘，请在本次回复的首行使用 <context action="trim|clear" keep_last="n" /> 标签清理历史。如果无需清理，请正常回答。';
         try {
-            const hintPromptPath = path.resolve(PKG_ROOT, 'prompts', '05新会话模式.md');
+            const hintPromptPath = path.resolve(PKG_ROOT, 'prompts', '04新会话模式.md');
             this.cachedHintPrompt = fs.readFileSync(hintPromptPath, 'utf-8').trim();
         } catch (e) {}
     }

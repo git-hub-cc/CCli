@@ -92,7 +92,7 @@ export class AgentRouterApiProvider implements ILLMProvider {
         try {
             // 对于 API 驱动，通常通过将文件内容文本化作为 system 提示词注入来实现挂载
             const ext = path.extname(absolutePath).toLowerCase();
-            const textExts = ['.ts', '.js', '.json', '.md', '.txt', '.css', '.html', '.config', '.ahk'];
+            const textExts = ['.ts', '.js', '.json', '.md', '.txt', '.css', '.html', '.config'];
 
             if (textExts.includes(ext) && fs.existsSync(absolutePath)) {
                 const content = fs.readFileSync(absolutePath, 'utf-8');

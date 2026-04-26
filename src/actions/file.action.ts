@@ -82,8 +82,7 @@ export class FileAction extends BaseAction {
             fs.mkdirSync(dir, { recursive: true });
         }
 
-        let cleanContent = content;
-        cleanContent = cleanContent.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
+        let cleanContent = content.trim();
 
         fs.writeFileSync(targetPath, cleanContent, 'utf-8');
         sysLogger.log(LogLevel.SUCCESS, `文件全量写入成功: ${targetPath}`);
@@ -95,7 +94,7 @@ export class FileAction extends BaseAction {
 
     private handleDiff(rawPath: string, content: string): ActionResult {
         const targetPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(process.cwd(), rawPath);
-        let cleanContent = content.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
+        let cleanContent = content.trim();
 
         if (!fs.existsSync(targetPath)) {
             throw new Error(`文件不存在，无法执行 diff 修改: ${targetPath}`);
@@ -224,7 +223,7 @@ export class FileAction extends BaseAction {
     }
 
     private isBinaryFile(filePath: string): boolean {
-        const textExts = ['.md', '.txt', '.js', '.ts', '.json', '.py', '.html', '.css', '.vue', '.java', '.c', '.cpp', '.h', '.xml', '.yml', '.yaml', '.sh', '.bat', '.ps1', '.ahk', '.env'];
+        const textExts = ['.md', '.txt', '.js', '.ts', '.json', '.py', '.html', '.css', '.vue', '.java', '.c', '.cpp', '.h', '.xml', '.yml', '.yaml', '.sh', '.bat', '.ps1', '.env'];
         const ext = path.extname(filePath).toLowerCase();
         if (textExts.includes(ext)) return false;
 

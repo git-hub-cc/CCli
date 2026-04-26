@@ -34,11 +34,4 @@ export class ActionRegistry {
     static get(tag: string): BaseAction | undefined {
         return this.actions.get(tag.toLowerCase());
     }
-
-    /**
-     * 获取所有已注册的插件列表
-     */
-    static getAll(): BaseAction[] {
-        return Array.from(this.actions.values());
-    }
 }

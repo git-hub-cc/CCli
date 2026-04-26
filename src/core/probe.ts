@@ -41,7 +41,7 @@ export async function refreshSystemProbe(): Promise<string> {
             const { stdout: consoleOut } = await execa('powershell', ['-NoProfile', '-Command', traceScript]);
             consoleType = consoleOut.trim() || 'cmd';
 
-            // 2. 原生窗口列表探测 (替代 python 脚本)
+            // 2. 原生窗口列表探测
             const winListScript = `
                 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
                 Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | 
@@ -50,7 +50,7 @@ export async function refreshSystemProbe(): Promise<string> {
             const { stdout: winOut } = await execa('powershell', ['-NoProfile', '-Command', winListScript]);
             windowsList = winOut.trim() || '暂无活跃窗口';
 
-            // 3. 原生显示器信息探测 (替代 python 脚本)
+            // 3. 原生显示器信息探测
             const displayScript = `
                 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
                 Add-Type -AssemblyName System.Windows.Forms
@@ -77,14 +77,11 @@ export async function refreshSystemProbe(): Promise<string> {
             env: { ...process.env, NO_COLOR: '1' }
         });
         if (stdout && stdout.trim() !== '') {
-            // 过滤 Scoop 输出，仅保留 Name 和 Version 两列
             scoopList = stdout.trim().split('\n').map(line => {
                 const trimmed = line.trim();
-                // 保留提示行
                 if (trimmed.startsWith('Installed apps:')) return trimmed;
                 const parts = trimmed.split(/\s+/);
                 if (parts.length >= 2) {
-                    // 仅提取前两个元素：Name 和 Version
                     return `${parts[0].padEnd(12)} ${parts[1]}`;
                 }
                 return line;
@@ -120,7 +117,6 @@ ${scoopList}
 
     const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
 
-    // 确保目录存在
     if (!fs.existsSync(path.dirname(envPath))) {
         fs.mkdirSync(path.dirname(envPath), { recursive: true });
     }

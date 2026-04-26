@@ -15,8 +15,7 @@ export class ShellAction extends BaseAction {
             throw new Error('<shell> 标签内容不能为空');
         }
 
-        // 清理命令中的 markdown 链接残留
-        const command = content.trim().replace(/\[(https?:\/\/[^\]]+)\]\(\1\)/g, '$1');
+        const command = content.trim();
         const mode = attributes['mode'] || 'sync';
         const isDetached = mode === 'detached';
         const isLaunch = mode === 'launch';
