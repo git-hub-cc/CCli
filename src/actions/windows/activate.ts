@@ -1,6 +1,7 @@
 import { ActionResult } from '../base.js';
 import { sysLogger, LogLevel } from '../../core/logger.js';
 import { execa } from 'execa';
+import { localConfig } from '../../core/config.js';
 
 /**
  * 针对特定应用的全局快捷键唤醒逻辑与兜底启动机制
@@ -88,6 +89,7 @@ export async function handleActivate(target: string): Promise<ActionResult | nul
             const { stdout } = await execa('powershell', ['-NoProfile', '-Command', psScript], { timeout: 10000 });
             
             if (stdout.trim() === 'SUCCESS') {
+                await new Promise(r => setTimeout(r, localConfig.windowWait));
                 return {
                     type: 'window',
                     content: `【系统自动反馈】窗口动作 activate 已针对目标 "${target}" 尝试动态唤醒成功。`

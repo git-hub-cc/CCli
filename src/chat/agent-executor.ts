@@ -59,9 +59,9 @@ export class AgentExecutor {
             }
 
             // 处理普通工具执行反馈并交还给大模型
-            if (interceptResult.cleanFeedbacks.length > 0) {
+            if (interceptResult.cleanFeedbacks.length > 0 || interceptResult.logFeedbacks.length > 0) {
                 // 用于写入硬盘的富文本日志（含链接等）
-                const rawFeedbackStr = interceptResult.cleanFeedbacks.join('\n\n');
+                const rawFeedbackStr = interceptResult.logFeedbacks.join('\n\n');
 
                 // 清洗掉路径等无用噪声，作为纯净反馈注入给 AI
                 const cleanedFeedbacks = interceptResult.cleanFeedbacks.map(fb => {

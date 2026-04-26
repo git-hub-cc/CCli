@@ -34,9 +34,24 @@ export class BrowserService {
      * 保证 <browser>, <wait>, <assert> 共享相同的 DOM 环境和登录态。
      */
     public static async getSharedPage(): Promise<{ browser: Browser, context: BrowserContext, page: Page }> {
-        // 如果当前内存中已有存活的页面实例，直接复用，避免反复触发 CDP 握手
-        if (this.page && !this.page.isClosed()) {
-            return { browser: this.browser!, context: this.context!, page: this.page };
+        // 如果当前内存中已有存活的页面实例，复用连接并动态追踪最新页面，避免反复触发 CDP 握手
+        if (this.browser && this.context && this.page && !this.page.isClosed()) {
+            const pages = this.context.pages();
+            const validPages = pages.filter(p => !p.isClosed());
+            
+            if (validPages.length > 0) {
+                this.page = validPages[validPages.length - 1];
+                
+                if (validPages.length > 1) {
+                    for (let i = 0; i < validPages.length - 1; i++) {
+                        validPages[i].close().catch(() => {}); 
+                    }
+                }
+            } else {
+                this.page = await this.context.newPage();
+            }
+            
+            return { browser: this.browser, context: this.context, page: this.page };
         }
 
         const isOpen = await this.isPortOpen(CDP_PORT);
@@ -109,7 +124,19 @@ export class BrowserService {
         this.context = this.browser.contexts()[0];
         const pages = this.context.pages();
         
-        this.page = pages.find(p => !p.isClosed()) || await this.context.newPage();
+        const validPages = pages.filter(p => !p.isClosed());
+
+        if (validPages.length > 0) {
+            this.page = validPages[validPages.length - 1];
+            
+            if (validPages.length > 1) {
+                for (let i = 0; i < validPages.length - 1; i++) {
+                    validPages[i].close().catch(() => {}); 
+                }
+            }
+        } else {
+            this.page = await this.context.newPage();
+        }
 
         return { browser: this.browser, context: this.context, page: this.page };
     }

@@ -1,6 +1,7 @@
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { mouse, Point, Button, straightTo } from '@nut-tree/nut-js';
+import { localConfig } from '../core/config.js';
 
 /**
  * 处理 <mouse> 标签：执行物理级别的原生鼠标动作
@@ -37,6 +38,7 @@ export class MouseAction extends BaseAction {
                     }
                     
                     await mouse.click(btn);
+                    await new Promise(r => setTimeout(r, localConfig.ioWait));
                     sysLogger.log(LogLevel.SUCCESS, `鼠标物理点击完成 (坐标: ${x},${y} 按键: ${attributes['btn'] || 'left'})`);
                     return { type: 'mouse', content: `【系统自动反馈】物理鼠标已在 (${x}, ${y}) 完成点击操作。` };
                 }
@@ -51,6 +53,7 @@ export class MouseAction extends BaseAction {
                     }
                     
                     await mouse.doubleClick(btn);
+                    await new Promise(r => setTimeout(r, localConfig.ioWait));
                     sysLogger.log(LogLevel.SUCCESS, `鼠标物理双击完成 (坐标: ${x},${y} 按键: ${attributes['btn'] || 'left'})`);
                     return { type: 'mouse', content: `【系统自动反馈】物理鼠标已在 (${x}, ${y}) 完成双击操作。` };
                 }
@@ -63,6 +66,7 @@ export class MouseAction extends BaseAction {
                     
                     await mouse.setPosition(new Point(x1, y1));
                     await mouse.drag(straightTo(new Point(x2, y2)));
+                    await new Promise(r => setTimeout(r, localConfig.ioWait));
                     sysLogger.log(LogLevel.SUCCESS, `鼠标物理拖拽完成 (${x1},${y1}) -> (${x2},${y2})`);
                     return { type: 'mouse', content: `【系统自动反馈】物理鼠标已完成拖拽操作。` };
                 }
@@ -72,6 +76,7 @@ export class MouseAction extends BaseAction {
                     const y = parseInt(attributes['y'] || '0', 10);
                     
                     await mouse.setPosition(new Point(x, y));
+                    await new Promise(r => setTimeout(r, localConfig.ioWait));
                     sysLogger.log(LogLevel.SUCCESS, `鼠标物理悬停完成 (坐标: ${x},${y})`);
                     return { type: 'mouse', content: `【系统自动反馈】物理鼠标已悬停在 (${x}, ${y})。` };
                 }
@@ -90,6 +95,7 @@ export class MouseAction extends BaseAction {
                         await mouse.scrollDown(amount);
                     }
                     
+                    await new Promise(r => setTimeout(r, localConfig.ioWait));
                     sysLogger.log(LogLevel.SUCCESS, `鼠标物理滚动完成 (方向: ${dir}, 距离: ${amount})`);
                     return { type: 'mouse', content: `【系统自动反馈】物理鼠标已完成滚动操作。` };
                 }

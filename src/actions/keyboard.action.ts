@@ -3,6 +3,7 @@ import { sysLogger, LogLevel } from '../core/logger.js';
 import { keyboard } from '@nut-tree/nut-js';
 import { KeyboardParser } from '../core/keyboard-parser.js';
 import { execa } from 'execa';
+import { localConfig } from '../core/config.js';
 
 /**
  * 处理 <keyboard> 标签：执行物理级别的原生键盘模拟输入
@@ -98,6 +99,7 @@ export class KeyboardAction extends BaseAction {
                 }
             }
 
+            await new Promise(r => setTimeout(r, localConfig.ioWait));
             sysLogger.log(LogLevel.SUCCESS, `键盘物理操作完成`);
             return { type: 'keyboard', content: `【系统自动反馈】物理键盘已成功敲击或键入内容。` };
         } catch (err: any) {

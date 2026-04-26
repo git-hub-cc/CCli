@@ -2,6 +2,7 @@ import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { execa } from 'execa';
 import { handleActivate } from './windows/activate.js';
+import { localConfig } from '../core/config.js';
 
 /**
  * 处理 <window> 标签：管理操作系统窗口生命周期与物理属性提取
@@ -106,6 +107,10 @@ export class WindowAction extends BaseAction {
 
                 if (out === 'UNSUPPORTED') {
                     throw new Error(`不支持的窗口动作: ${action}`);
+                }
+
+                if (['activate', 'restore'].includes(action.toLowerCase())) {
+                    await new Promise(r => setTimeout(r, localConfig.windowWait));
                 }
 
                 return {

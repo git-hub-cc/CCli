@@ -19,7 +19,9 @@ export const localConfig = {
     defaultModel: 'deepseek-r1-0528',
     siliconflowApiKey: '',
     siliconflowModel: 'deepseek-ai/DeepSeek-V2.5',
-    maxBinaryUploads: { default: 3 } as Record<string, number>
+    maxBinaryUploads: { default: 3 } as Record<string, number>,
+    ioWait: 500,
+    windowWait: 3000
 };
 
 const parseConfig = (filePath: string) => {
@@ -74,6 +76,12 @@ const parseConfig = (filePath: string) => {
             });
             if (!limits['default']) limits['default'] = 3;
             localConfig.maxBinaryUploads = limits;
+        }
+        if (key.trim() === 'IO_WAIT' && value) {
+            localConfig.ioWait = parseInt(value, 10) || 500;
+        }
+        if (key.trim() === 'WINDOW_WAIT' && value) {
+            localConfig.windowWait = parseInt(value, 10) || 3000;
         }
     });
 };

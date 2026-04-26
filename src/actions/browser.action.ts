@@ -62,14 +62,12 @@ export class BrowserAction extends BaseAction {
                         element.style.outline = '2px dashed rgba(255, 0, 0, 0.7)';
                         element.style.outlineOffset = '2px';
 
-                        // 更强健的名称提取逻辑，向父级回溯探测 title
                         let name = element.innerText || element.getAttribute('aria-label') || element.getAttribute('placeholder') || (element as HTMLInputElement).value || element.getAttribute('title') || '';
 
                         if (!name.trim() && element.parentElement) {
                             name = element.parentElement.getAttribute('title') || '';
                         }
 
-                        // 如果连父级的 title 都没找到，尝试提取类名作为特征线索供大模型推测
                         const fallbackName = element.className && typeof element.className === 'string' ? `无文本 [class: ${element.className.trim()}]` : '无文本(可能为图标)';
                         name = name.trim().replace(/\s+/g, ' ').substring(0, 40) || fallbackName;
 
@@ -169,17 +167,17 @@ export class BrowserAction extends BaseAction {
 
                 htmlContent += `</body></html>`;
 
-                const logDir = process.env.CCLI_SESSION_DIR || path.resolve(process.cwd(), '.ccli/logs');
-                if (!fs.existsSync(logDir)) {
-                    fs.mkdirSync(logDir, { recursive: true });
-                }
+                const savedHtml = sysLogger.saveScanHtml(htmlContent, 'browser-scan-html');
+                const htmlPathDisplay = savedHtml ? savedHtml.relativePath : 'browser-scan-html/001.html';
 
-                const reportPath = path.resolve(logDir, 'browser_report.html');
-                fs.writeFileSync(reportPath, htmlContent);
+                const fullContent = `【系统自动反馈：网页交互元素扫描结果】\n已为页面元素分配数字 ID。可视化映射（科技蓝配色）已保存至 \`${htmlPathDisplay}\`。\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill/select" 并传入 id 执行后续操作。`;
+                const savedScan = sysLogger.saveScanResult(fullContent, 'browser-scan');
+                const logContent = `【系统自动反馈：网页交互元素扫描结果】\n> 💾 已归档至: [${savedScan?.fileName}](${savedScan?.relativePath})\n提示：请使用 action="click/fill/select" 并传入 id 执行后续操作。`;
 
                 return {
                     type: 'browser',
-                    content: `【系统自动反馈：网页交互元素扫描结果】\n已为页面元素分配数字 ID。可视化映射（科技蓝配色）已保存至 \`${reportPath}\`。\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill/select" 并传入 id 执行后续操作。`
+                    content: logContent,
+                    payload: { fullContent }
                 };
             }
 
@@ -202,9 +200,21 @@ export class BrowserAction extends BaseAction {
 
                 if (action === 'click') {
                     await locator.evaluate((node) => {
-                        const el = node as HTMLLinkElement;
+                        const el = node as HTMLElement;
                         if (el.getAttribute('target') === '_blank') el.removeAttribute('target');
+                        
+                        const aTag = el.closest('a');
+                        if (aTag) {
+                            aTag.removeAttribute('target');
+                            aTag.onclick = (e) => {
+                                if (aTag.href && aTag.href !== 'javascript:void(0)') {
+                                    e.preventDefault();
+                                    window.location.href = aTag.href;
+                                }
+                            };
+                        }
                     }).catch(() => {});
+                    
                     await locator.click({ force: true, timeout: 15000 });
                     sysLogger.log(LogLevel.SUCCESS, `已点击元素 [${targetId}]`);
                     return { type: 'browser', content: `【系统自动反馈】已成功点击元素 [${targetId}]。` };
@@ -213,7 +223,6 @@ export class BrowserAction extends BaseAction {
                     const value = attributes['value'] || content;
 
                     try {
-                        // 正常尝试注入
                         await locator.fill(value, { timeout: 15000 });
                         sysLogger.log(LogLevel.SUCCESS, `已在 [${targetId}] 填入文本`);
                         return { type: 'browser', content: `【系统自动反馈】已成功在输入框 [${targetId}] 填入文本。` };
@@ -230,19 +239,16 @@ export class BrowserAction extends BaseAction {
                                 const fCount = await fLocator.count();
                                 if (fCount > 0) {
                                     try {
-                                        // 标记当前正在尝试的相邻元素
                                         await fLocator.evaluate((node) => {
                                             const el = node as HTMLElement;
                                             el.style.backgroundColor = 'rgba(0, 255, 0, 0.6)';
                                         }).catch(() => {});
                                         await page.waitForTimeout(300);
 
-                                        // 尝试填充
                                         await fLocator.fill(value, { timeout: 5000 });
                                         successId = fId;
-                                        break; // 只要有一个成功，立即跳出循环
+                                        break;
                                     } catch (e) {
-                                        // 忽略相邻元素的报错，继续尝试下一个
                                     }
                                 }
                             }
@@ -252,7 +258,6 @@ export class BrowserAction extends BaseAction {
                             sysLogger.log(LogLevel.SUCCESS, `容错成功：已在相邻元素 [${successId}] 填入文本`);
                             return { type: 'browser', content: `【系统自动反馈】原元素 [${targetId}] 不可输入，已触发动态容错机制，成功在相邻的输入框 [${successId}] 填入文本。` };
                         } else {
-                            // 如果相邻元素都不行，抛出原异常
                             throw fillError;
                         }
                     }

@@ -140,17 +140,17 @@ export class UiaAction extends BaseAction {
 
                 htmlContent += `</body></html>`;
 
-                const logDir = process.env.CCLI_SESSION_DIR || path.resolve(process.cwd(), '.ccli/logs');
-                if (!fs.existsSync(logDir)) {
-                    fs.mkdirSync(logDir, { recursive: true });
-                }
+                const savedHtml = sysLogger.saveScanHtml(htmlContent, 'uia-scan-html');
+                const htmlPathDisplay = savedHtml ? savedHtml.relativePath : 'uia-scan-html/001.html';
 
-                const reportPath = path.resolve(logDir, 'uia_report.html');
-                fs.writeFileSync(reportPath, htmlContent);
+                const fullContent = `【系统自动反馈：UIA 交互元素扫描结果】\n已为目标窗口 "${target}" 分配短 ID。可视化映射（科技蓝配色）已保存至 \`${htmlPathDisplay}\`。\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill" 并传入 id 执行后续操作。`;
+                const savedScan = sysLogger.saveScanResult(fullContent, 'uia-scan');
+                const logContent = `【系统自动反馈：UIA 交互元素扫描结果】\n> 💾 已归档至: [${savedScan?.fileName}](${savedScan?.relativePath})\n提示：请使用 action="click/fill" 并传入 id 执行后续操作。`;
 
                 return {
                     type: 'uia',
-                    content: `【系统自动反馈：UIA 交互元素扫描结果】\n已为目标窗口 "${target}" 分配短 ID。可视化映射（科技蓝配色）已保存至 \`${reportPath}\`。\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill" 并传入 id 执行后续操作。`
+                    content: logContent,
+                    payload: { fullContent }
                 };
             }
 

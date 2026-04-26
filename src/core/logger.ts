@@ -196,6 +196,52 @@ export class Logger {
             fileName: newFileName
         };
     }
+
+    saveScanResult(content: string, prefix: string = 'browser-scan'): { relativePath: string, fileName: string } | null {
+        if (!this.sessionDir) return null;
+
+        const scanDir = path.join(this.sessionDir, prefix);
+        if (!fs.existsSync(scanDir)) {
+            fs.mkdirSync(scanDir, { recursive: true });
+        }
+
+        const existingFiles = fs.readdirSync(scanDir).filter(f => f.endsWith('.md'));
+        const nextSeq = existingFiles.length + 1;
+        const seqStr = String(nextSeq).padStart(3, '0');
+
+        const newFileName = `${seqStr}.md`;
+        const targetPath = path.join(scanDir, newFileName);
+
+        fs.writeFileSync(targetPath, content, 'utf-8');
+
+        return {
+            relativePath: `${prefix}/${newFileName}`,
+            fileName: newFileName
+        };
+    }
+
+    saveScanHtml(content: string, prefix: string = 'browser-scan-html'): { relativePath: string, fileName: string } | null {
+        if (!this.sessionDir) return null;
+
+        const scanDir = path.join(this.sessionDir, prefix);
+        if (!fs.existsSync(scanDir)) {
+            fs.mkdirSync(scanDir, { recursive: true });
+        }
+
+        const existingFiles = fs.readdirSync(scanDir).filter(f => f.endsWith('.html'));
+        const nextSeq = existingFiles.length + 1;
+        const seqStr = String(nextSeq).padStart(3, '0');
+
+        const newFileName = `${seqStr}.html`;
+        const targetPath = path.join(scanDir, newFileName);
+
+        fs.writeFileSync(targetPath, content, 'utf-8');
+
+        return {
+            relativePath: `${prefix}/${newFileName}`,
+            fileName: newFileName
+        };
+    }
 }
 
 export const sysLogger = new Logger();

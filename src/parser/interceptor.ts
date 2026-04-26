@@ -3,6 +3,7 @@ import type { ActionResult } from '../actions/base.js';
 
 export interface InterceptorResult {
     cleanFeedbacks: string[];
+    logFeedbacks: string[];
     needsRestartSession: boolean;
     restartAction: string;
     restartKeepLast: number;
@@ -12,6 +13,7 @@ export class SystemInterceptor {
     static intercept(feedbacks: ActionResult[], currentDepth: number): InterceptorResult {
         const result: InterceptorResult = {
             cleanFeedbacks: [],
+            logFeedbacks: [],
             needsRestartSession: false,
             restartAction: '',
             restartKeepLast: 0
@@ -27,6 +29,7 @@ export class SystemInterceptor {
                     sysLogger.log(LogLevel.WARN, '检测到 AI 在自循环执行动作中试图清理上下文，已拦截。');
                     sysLogger.appendActionTrace(`[INTERCEPTOR-WARN] 拒绝深层自循环中的 context 清理请求`);
                     result.cleanFeedbacks.push('【系统自动反馈：动作拦截】子任务执行中禁止使用 <context> 标签，请继续当前任务或输出纯文本总结。');
+                    result.logFeedbacks.push('【系统自动反馈：动作拦截】子任务执行中禁止使用 <context> 标签，请继续当前任务或输出纯文本总结。');
                 } else {
                     sysLogger.appendActionTrace(`[INTERCEPTOR-SIGNAL] 捕获到上下文重组请求: ${fb.payload.action}`);
                     result.needsRestartSession = true;
@@ -48,7 +51,14 @@ export class SystemInterceptor {
                 } else {
                     sysLogger.appendActionTrace(`[INTERCEPTOR-PASS] 收集有效反馈: ${fb.type}`);
                 }
-                result.cleanFeedbacks.push(fb.content);
+                
+                if (fb.payload && fb.payload.fullContent) {
+                    result.logFeedbacks.push(fb.content);
+                    result.cleanFeedbacks.push(fb.payload.fullContent);
+                } else {
+                    result.logFeedbacks.push(fb.content);
+                    result.cleanFeedbacks.push(fb.content);
+                }
             }
         }
 

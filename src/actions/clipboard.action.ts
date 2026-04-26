@@ -2,6 +2,7 @@ import clipboard from 'clipboardy';
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { execa } from 'execa';
+import { localConfig } from '../core/config.js';
 
 /**
  * 处理 <clipboard> 标签：读写系统剪贴板，支持文本与文件
@@ -42,6 +43,7 @@ export class ClipboardAction extends BaseAction {
                         cleanPath = cleanPath.slice(1, -1);
                     }
                     await execa('powershell', ['-NoProfile', '-Command', `Set-Clipboard -Path "${cleanPath}"`]);
+                    await new Promise(r => setTimeout(r, localConfig.ioWait));
                     sysLogger.log(LogLevel.SUCCESS, '已将文件写入系统剪贴板');
                     return {
                         type: 'clipboard',
@@ -55,6 +57,7 @@ export class ClipboardAction extends BaseAction {
                     throw new Error('写入操作需要提供文本内容');
                 }
                 await clipboard.write(content);
+                await new Promise(r => setTimeout(r, localConfig.ioWait));
                 sysLogger.log(LogLevel.SUCCESS, '已将指定文本写入系统剪贴板');
                 return {
                     type: 'clipboard',
