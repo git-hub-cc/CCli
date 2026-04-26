@@ -7,6 +7,7 @@ import { AIMLParser } from '../parser/aiml-parser.js';
 import { LLMProviderFactory } from '../llm/factory.js';
 import { MockTestProvider } from '../llm/mock-test.js';
 import { SystemInterceptor } from '../parser/interceptor.js';
+import { extractMarkdownMeta } from './utils.js';
 
 export class TestEngine {
     private testDir: string;
@@ -16,29 +17,6 @@ export class TestEngine {
         if (!fs.existsSync(this.testDir)) {
             fs.mkdirSync(this.testDir, { recursive: true });
         }
-    }
-
-    private parseFrontmatter(text: string) {
-        const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-        if (!match) return { meta: {}, body: text };
-        
-        const metaRaw = match[1];
-        const body = match[2];
-        const meta: Record<string, any> = {};
-        
-        metaRaw.split('\n').forEach(line => {
-            const parts = line.split(':');
-            if (parts.length >= 2) {
-                const key = parts[0].trim();
-                const val = parts.slice(1).join(':').trim();
-                if (val.startsWith('[') && val.endsWith(']')) {
-                    meta[key] = val.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
-                } else {
-                    meta[key] = val.replace(/^["']|["']$/g, '');
-                }
-            }
-        });
-        return { meta, body };
     }
 
     async run(targetCase?: string, tags?: string) {
@@ -60,7 +38,7 @@ export class TestEngine {
         for (const file of files) {
             const filePath = path.join(this.testDir, file);
             const content = fs.readFileSync(filePath, 'utf-8');
-            const { meta, body } = this.parseFrontmatter(content);
+            const { meta, body } = extractMarkdownMeta(content);
 
             if (targetTags.length > 0) {
                 const caseTags = meta.tags || [];

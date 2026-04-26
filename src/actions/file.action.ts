@@ -8,7 +8,7 @@ import { ContextManager } from '../core/context-manager.js';
 import { localConfig } from '../core/config.js';
 
 /**
- * 处理 <file> 标签：全量写入、增量修改、本地搜索、探测树结构、批量打包挂载、二进制挂载
+ * 处理 <file> 标签：全量写入、增量修改、本地搜索、探测树结构、批量打包挂载、二进制挂载、单文件读取
  */
 export class FileAction extends BaseAction {
     tag = 'file';
@@ -25,6 +25,8 @@ export class FileAction extends BaseAction {
 
         try {
             switch (action) {
+                case 'read':
+                    return this.handleRead(rawPath);
                 case 'write':
                 case 'overwrite':
                     return this.handleWrite(rawPath, content);
@@ -46,6 +48,31 @@ export class FileAction extends BaseAction {
         } catch (err: any) {
             throw new Error(`文件操作异常: ${err.message}`);
         }
+    }
+
+    private handleRead(rawPath: string): ActionResult {
+        const targetPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(process.cwd(), rawPath);
+        if (!fs.existsSync(targetPath)) {
+            throw new Error(`文件不存在，无法读取: ${targetPath}`);
+        }
+        
+        if (fs.statSync(targetPath).isDirectory()) {
+            throw new Error(`目标是一个目录，请使用 tree 或 search 动作: ${targetPath}`);
+        }
+
+        if (this.isBinaryFile(targetPath)) {
+            throw new Error(`无法直接读取二进制文件内容，请使用 upload 动作挂载: ${targetPath}`);
+        }
+
+        const content = fs.readFileSync(targetPath, 'utf-8');
+        const ext = path.extname(targetPath).toLowerCase().replace('.', '') || 'text';
+        const relPath = path.relative(process.cwd(), targetPath).replace(/\\/g, '/');
+
+        sysLogger.log(LogLevel.SUCCESS, `文件读取成功: ${targetPath}`);
+        return {
+            type: 'file',
+            content: `【系统自动反馈：本地文件读取结果】\n## 📄 文件: ${relPath}\n\n\`\`\`${ext}\n${content}\n\`\`\``
+        };
     }
 
     private handleWrite(rawPath: string, content: string): ActionResult {

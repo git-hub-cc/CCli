@@ -16,42 +16,60 @@ export async function refreshSystemProbe(): Promise<string> {
     const cwd = process.cwd();
 
     let consoleType = 'cmd';
+    let windowsList = '无法获取当前窗口列表';
+    let displayInfo = '无法获取显示器拓扑与缩放信息';
+
     if (platform === 'win32') {
         try {
-            // 通过 WMI 向上追溯真实的祖先进程，跳过自身和 node，穿透 cmd 包装层
+            // 1. 终端溯源探测
             const traceScript = `
                 $current = Get-CimInstance Win32_Process -Filter "ProcessId = $PID"
                 $id = $current.ParentProcessId
                 $fallback = 'cmd'
-                
                 while($id -gt 0) {
                     $p = Get-CimInstance Win32_Process -Filter "ProcessId = $id"
                     if (-not $p) { break }
-                    
                     $name = $p.Name.ToLower()
-                    
                     if ($name -match 'pwsh\\.exe') { Write-Output 'powershell7'; exit }
                     if ($name -match 'powershell\\.exe') { Write-Output 'powershell5'; exit }
                     if ($name -match 'bash\\.exe|mintty\\.exe') { Write-Output 'bash'; exit }
                     if ($name -match 'cmd\\.exe') { $fallback = 'cmd' }
-                    
                     $id = $p.ParentProcessId
                 }
                 Write-Output $fallback
             `;
+            const { stdout: consoleOut } = await execa('powershell', ['-NoProfile', '-Command', traceScript]);
+            consoleType = consoleOut.trim() || 'cmd';
 
-            // 随便用一个 shell 去执行这段溯源脚本即可
-            const { stdout } = await execa('powershell', ['-NoProfile', '-Command', traceScript]);
-            if (stdout) {
-                consoleType = stdout.trim();
-            }
+            // 2. 原生窗口列表探测 (替代 python 脚本)
+            const winListScript = `
+                [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+                Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | 
+                Select-Object -Property MainWindowTitle | ForEach-Object { $_.MainWindowTitle.Trim() }
+            `;
+            const { stdout: winOut } = await execa('powershell', ['-NoProfile', '-Command', winListScript]);
+            windowsList = winOut.trim() || '暂无活跃窗口';
+
+            // 3. 原生显示器信息探测 (替代 python 脚本)
+            const displayScript = `
+                [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+                Add-Type -AssemblyName System.Windows.Forms
+                [System.Windows.Forms.Screen]::AllScreens | ForEach-Object {
+                    $s = $_
+                    "$($s.DeviceName.Replace('\\\\.\\', '')) - 分辨率: $($s.Bounds.Width)x$($s.Bounds.Height) (主屏: $($s.Primary))"
+                }
+            `;
+            const { stdout: dispOut } = await execa('powershell', ['-NoProfile', '-Command', displayScript]);
+            displayInfo = dispOut.trim() || '无法获取显示器数据';
+
         } catch (e) {
-            consoleType = 'cmd';
+            // 保持默认值
         }
     } else {
         consoleType = process.env.SHELL || 'bash';
     }
 
+    // 4. Scoop 软件清单抓取
     let scoopList = '未安装 Scoop 或当前环境无软件列表';
     try {
         const { stdout } = await execa('scoop', ['list'], {
@@ -64,7 +82,6 @@ export async function refreshSystemProbe(): Promise<string> {
                 const trimmed = line.trim();
                 // 保留提示行
                 if (trimmed.startsWith('Installed apps:')) return trimmed;
-
                 const parts = trimmed.split(/\s+/);
                 if (parts.length >= 2) {
                     // 仅提取前两个元素：Name 和 Version
@@ -77,35 +94,29 @@ export async function refreshSystemProbe(): Promise<string> {
         // 忽略执行异常
     }
 
-    let windowsList = '无法获取当前窗口列表';
-    try {
-        const winScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'list-running-apps.py');
-        const { stdout: winOut } = await execa('python', [winScriptPath], { 
-            reject: false,
-            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
-        });
-        if (winOut && winOut.trim() !== '') {
-            windowsList = winOut.trim();
-        }
-    } catch (e) {
-        // 忽略执行异常
-    }
+    // 5. 组装带有 Frontmatter 的最终内容
+    const probeContent = `---
+name: 01环境.md
+description: 系统与目录环境信息。
+tags: 系统, 环境
+---
 
-    let displayInfo = '无法获取显示器拓扑与缩放信息';
-    try {
-        const displayScriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'get-display-info.py');
-        const { stdout: displayOut } = await execa('python', [displayScriptPath], { 
-            reject: false,
-            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
-        });
-        if (displayOut && displayOut.trim() !== '') {
-            displayInfo = displayOut.trim();
-        }
-    } catch (e) {
-        // 忽略执行异常
-    }
+### 系统环境
+OS: ${platform}-${arch}
+Shell: ${consoleType}
 
-    const probeContent = `### 系统环境\nOS: ${platform}-${arch}\nShell: ${consoleType}\n\n### 当前工作目录\n${cwd}\n\n### 显示器拓扑与缩放\n${displayInfo}\n\n### 当前运行的窗口\n${windowsList}\n\n### Scoop 软件清单\n${scoopList}\n`;
+### 当前工作目录
+${cwd}
+
+### 显示器拓扑与缩放
+${displayInfo}
+
+### 当前运行的窗口
+${windowsList}
+
+### Scoop 软件清单
+${scoopList}
+`;
 
     const envPath = path.resolve(process.cwd(), '.ccli', 'data', '01环境.md');
 

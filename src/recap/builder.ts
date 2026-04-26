@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import fastGlob from 'fast-glob';
 import { fileURLToPath } from 'url';
+import { extractMarkdownMeta } from '../core/utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
@@ -16,7 +17,19 @@ async function appendDirToContext(dirPath: string, globPattern: string, prefix: 
         for (const file of files) {
             const filePath = path.join(dirPath, file);
             const ext = path.extname(file).replace('.', '') || 'text';
-            result += `## 📄 文件: ${prefix}/${file}\n\n\`\`\`${ext}\n${fs.readFileSync(filePath, 'utf-8')}\n\`\`\`\n\n---\n\n`;
+            const rawContent = fs.readFileSync(filePath, 'utf-8');
+            
+            let displayContent = rawContent;
+            
+            // 为了防止 YAML 头导致 Markdown 嵌套解析错误，提取为明文元数据
+            if (ext === 'md') {
+                const { meta, body } = extractMarkdownMeta(rawContent);
+                if (Object.keys(meta).length > 0) {
+                    displayContent = `[Meta]: ${JSON.stringify(meta)}\n\n${body.trim()}`;
+                }
+            }
+            
+            result += `## 📄 文件: ${prefix}/${file}\n\n\`\`\`${ext}\n${displayContent}\n\`\`\`\n\n---\n\n`;
         }
     }
     return result;

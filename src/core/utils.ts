@@ -3,6 +3,32 @@ import fs from 'fs';
 import path from 'path';
 
 /**
+ * 提取 Markdown 文件的 YAML Frontmatter 元数据和正文
+ */
+export function extractMarkdownMeta(text: string): { meta: Record<string, any>, body: string } {
+    const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+    if (!match) return { meta: {}, body: text };
+    
+    const metaRaw = match[1];
+    const body = match[2];
+    const meta: Record<string, any> = {};
+    
+    metaRaw.split('\n').forEach(line => {
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+            const key = parts[0].trim();
+            const val = parts.slice(1).join(':').trim();
+            if (val.startsWith('[') && val.endsWith(']')) {
+                meta[key] = val.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
+            } else {
+                meta[key] = val.replace(/^["']|["']$/g, '');
+            }
+        }
+    });
+    return { meta, body };
+}
+
+/**
  * 启发式探测 Windows 命令的 Shell 类型
  * @param command 终端命令字符串
  * @returns 'cmd' | 'powershell' | 'neutral'
@@ -12,19 +38,19 @@ export function detectWindowsShellType(command: string): 'cmd' | 'powershell' | 
 
     // 1. 匹配 PowerShell 专属特征
     const psPatterns = [
-        /\$[a-zA-Z0-9_:]+/,                // 变量或环境变量，如 $env:SystemRoot
-        /\b[A-Z][a-z]+-[A-Z][a-z]+\b/,     // 标准 Cmdlet，如 Get-ChildItem
-        /\s-[a-zA-Z]{2,}\b/,               // PS 参数风格，如 -Path
-        /\[[a-zA-Z0-9_.]+\]::/,            // .NET 静态方法调用
-        /\|\s*(%|\?|ForEach-Object|Where-Object)/ // PS 特有的管道符简写
+        /\$[a-zA-Z0-9_:]+/,
+        /\b[A-Z][a-z]+-[A-Z][a-z]+\b/,
+        /\s-[a-zA-Z]{2,}\b/,
+        /\[[a-zA-Z0-9_.]+\]::/,
+        /\|\s*(%|\?|ForEach-Object|Where-Object)/
     ];
 
     // 2. 匹配 CMD 专属特征
     const cmdPatterns = [
-        /%[a-zA-Z0-9_]+%/,                 // CMD 环境变量，如 %SystemRoot%
-        /\b(dir|del|copy|xcopy|rmdir|mkdir|ren|move)\s+\/[a-zA-Z]\b/i, // CMD 基础命令带 /参数
-        />nul\b/i,                         // CMD 黑洞重定向
-        /\b(mklink|setx)\b/i               // CMD 特有的内置命令
+        /%[a-zA-Z0-9_]+%/,
+        /\b(dir|del|copy|xcopy|rmdir|mkdir|ren|move)\s+\/[a-zA-Z]\b/i,
+        />nul\b/i,
+        /\b(mklink|setx)\b/i
     ];
 
     const isPS = psPatterns.some(regex => regex.test(command));

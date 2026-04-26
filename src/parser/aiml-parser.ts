@@ -54,9 +54,30 @@ export class AIMLParser {
      * 执行解析出的节点流，并收集结构化的反馈对象
      */
     static async executeNodes(nodes: ParsedNode[], provider?: ILLMProvider): Promise<ActionResult[]> {
+        const readNodes = nodes.filter(n => n.tag === 'file' && (n.attributes['action'] === 'read' || n.attributes['type'] === 'read'));
+        let optimizedNodes = nodes;
+
+        if (readNodes.length > 1) {
+            const mergedPaths = readNodes.map(n => n.attributes['path']).filter(Boolean).join(',');
+            let firstReplaced = false;
+            optimizedNodes = nodes.filter(n => {
+                if (n.tag === 'file' && (n.attributes['action'] === 'read' || n.attributes['type'] === 'read')) {
+                    if (!firstReplaced) {
+                        n.attributes['action'] = 'pack';
+                        n.attributes['path'] = mergedPaths;
+                        firstReplaced = true;
+                        return true;
+                    }
+                    return false;
+                }
+                return true;
+            });
+            sysLogger.log(LogLevel.INFO, `检测到多个连续的文件读取操作，已自动优化合并为 pack 批量处理`);
+        }
+
         const feedbacks: ActionResult[] = [];
 
-        for (const node of nodes) {
+        for (const node of optimizedNodes) {
             const actionInstance = ActionRegistry.get(node.tag);
 
             if (!actionInstance) {
