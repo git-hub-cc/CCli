@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { BrowserService } from '../core/browser-service.js';
@@ -8,7 +10,7 @@ export class BrowserAction extends BaseAction {
     async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const action = (attributes['action'] || '').toLowerCase();
         if (!action) {
-            throw new Error('<browser> 标签缺少必填属性 action (goto/scan/click/fill/select/read)');
+            throw new Error('<browser> 标签缺少必填属性 action (goto/scan/click/fill/select)');
         }
 
         sysLogger.log(LogLevel.ACTION, `准备执行浏览器操作: ${action}`);
@@ -26,20 +28,28 @@ export class BrowserAction extends BaseAction {
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 sysLogger.log(LogLevel.SUCCESS, `成功导航至: ${url}`);
                 return { type: 'browser', content: `【系统自动反馈】浏览器已成功导航至: ${url}` };
-            } 
-            
+            }
+
             else if (action === 'scan') {
-                const elements = await page.evaluate(() => {
+                const elementsData = await page.evaluate(() => {
                     let idCounter = 1;
-                    const selectors = 'a, button, input, textarea, select, [role="button"], [role="link"], [role="checkbox"], [role="menuitem"], [role="tab"]';
-                    const interactables = document.querySelectorAll(selectors);
-                    const results: string[] = [];
+                    const selectors = 'a, button, input, textarea, select, [role="button"], [role="link"], [role="checkbox"], [role="menuitem"], [role="tab"], [tabindex]:not([tabindex="-1"])';
+                    const scanTargets = Array.from(document.querySelectorAll(selectors));
+
+                    document.querySelectorAll('div, span, svg, i').forEach(el => {
+                        if (el.hasAttribute('title') || window.getComputedStyle(el).cursor === 'pointer') {
+                            scanTargets.push(el);
+                        }
+                    });
+
+                    const interactables = new Set(scanTargets);
+                    const results: any[] = [];
                     const windowHeight = window.innerHeight || document.documentElement.clientHeight;
 
                     interactables.forEach((el) => {
                         const element = el as HTMLElement;
                         const rect = element.getBoundingClientRect();
-                        
+
                         if (rect.width === 0 || rect.height === 0) return;
                         if (rect.bottom < 0 || rect.top > windowHeight + 500) return;
 
@@ -52,24 +62,124 @@ export class BrowserAction extends BaseAction {
                         element.style.outline = '2px dashed rgba(255, 0, 0, 0.7)';
                         element.style.outlineOffset = '2px';
 
+                        // 更强健的名称提取逻辑，向父级回溯探测 title
                         let name = element.innerText || element.getAttribute('aria-label') || element.getAttribute('placeholder') || (element as HTMLInputElement).value || element.getAttribute('title') || '';
-                        name = name.trim().replace(/\s+/g, ' ').substring(0, 40);
+
+                        if (!name.trim() && element.parentElement) {
+                            name = element.parentElement.getAttribute('title') || '';
+                        }
+
+                        // 如果连父级的 title 都没找到，尝试提取类名作为特征线索供大模型推测
+                        const fallbackName = element.className && typeof element.className === 'string' ? `无文本 [class: ${element.className.trim()}]` : '无文本(可能为图标)';
+                        name = name.trim().replace(/\s+/g, ' ').substring(0, 40) || fallbackName;
 
                         const tagName = element.tagName.toLowerCase();
                         const typeAttr = element.getAttribute('type') ? `:${element.getAttribute('type')}` : '';
 
-                        results.push(`[${id}] ${tagName}${typeAttr} - ${name ? `"${name}"` : '无文本(可能为图标)'}`);
+                        results.push({
+                            id,
+                            tagName,
+                            typeAttr,
+                            name,
+                            bbox: {
+                                x: rect.left + window.scrollX,
+                                y: rect.top + window.scrollY,
+                                w: rect.width,
+                                h: rect.height
+                            }
+                        });
                     });
                     return results;
                 });
 
-                if (elements.length === 0) {
+                if (elementsData.length === 0) {
                     return { type: 'browser', content: `【系统自动反馈】页面可视区域内未检测到有效的交互元素。` };
                 }
 
+                const formatList = elementsData.map(e => `[${e.id}] ${e.tagName}${e.typeAttr} - ${e.name.startsWith('无文本') ? e.name : `"${e.name}"`}`);
+
+                let htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { background: #1a1a1a; color: #00ffff; margin: 0; padding: 0; font-family: sans-serif; }
+        .control-box {
+            position: absolute;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            background: rgba(0, 255, 255, 0.05);
+            box-sizing: border-box;
+            pointer-events: auto;
+            transition: all 0.1s;
+        }
+        .control-box:hover {
+            border: 2px solid #fff;
+            background: rgba(0, 255, 255, 0.3);
+            z-index: 9999 !important;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        .id-tag {
+            background: #007acc;
+            color: white;
+            padding: 1px 3px;
+            font-size: 10px;
+            font-weight: bold;
+            position: absolute;
+            left: -1px;
+            top: -1px;
+            white-space: nowrap;
+        }
+        .content-text {
+            font-size: 10px;
+            color: #fff;
+            position: absolute;
+            width: calc(100% - 4px);
+            left: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .content-text.centered {
+            bottom: auto;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: center;
+            opacity: 1;
+        }
+        .content-text.bottom {
+            bottom: 1px;
+            opacity: 0.8;
+            font-size: 9px;
+        }
+    </style>
+</head>
+<body>`;
+
+                elementsData.forEach((e: any) => {
+                    const titleInfo = `[${e.id}] ${e.tagName}${e.typeAttr}\nName: ${e.name}`;
+                    const innerHtml = `<span class="id-tag">[${e.id}]</span>`;
+
+                    htmlContent += `
+                    <div class="control-box" title="${titleInfo.replace(/"/g, '&quot;')}"
+                         style="left:${e.bbox.x}px; top:${e.bbox.y}px; width:${e.bbox.w}px; height:${e.bbox.h}px; z-index:${100 - Math.floor((e.bbox.w * e.bbox.h) / 10000)};">
+                        ${innerHtml}
+                    </div>`;
+                });
+
+                htmlContent += `</body></html>`;
+
+                const logDir = process.env.CCLI_SESSION_DIR || path.resolve(process.cwd(), '.ccli/logs');
+                if (!fs.existsSync(logDir)) {
+                    fs.mkdirSync(logDir, { recursive: true });
+                }
+
+                const reportPath = path.resolve(logDir, 'browser_report.html');
+                fs.writeFileSync(reportPath, htmlContent);
+
                 return {
                     type: 'browser',
-                    content: `【系统自动反馈：网页交互元素扫描结果】\n已为页面元素分配数字 ID。\n------------------------------------------\n${elements.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill/select" 并传入 id 执行后续操作。`
+                    content: `【系统自动反馈：网页交互元素扫描结果】\n已为页面元素分配数字 ID。可视化映射（科技蓝配色）已保存至 \`${reportPath}\`。\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/fill/select" 并传入 id 执行后续操作。`
                 };
             }
 
@@ -98,27 +208,61 @@ export class BrowserAction extends BaseAction {
                     await locator.click({ force: true, timeout: 15000 });
                     sysLogger.log(LogLevel.SUCCESS, `已点击元素 [${targetId}]`);
                     return { type: 'browser', content: `【系统自动反馈】已成功点击元素 [${targetId}]。` };
-                } 
+                }
                 else if (action === 'fill') {
                     const value = attributes['value'] || content;
-                    await locator.fill(value, { timeout: 15000 });
-                    sysLogger.log(LogLevel.SUCCESS, `已在 [${targetId}] 填入文本`);
-                    return { type: 'browser', content: `【系统自动反馈】已成功在输入框 [${targetId}] 填入文本。` };
-                } 
+
+                    try {
+                        // 正常尝试注入
+                        await locator.fill(value, { timeout: 15000 });
+                        sysLogger.log(LogLevel.SUCCESS, `已在 [${targetId}] 填入文本`);
+                        return { type: 'browser', content: `【系统自动反馈】已成功在输入框 [${targetId}] 填入文本。` };
+                    } catch (fillError: any) {
+                        sysLogger.log(LogLevel.WARN, `[${targetId}] 不支持直接输入文本，正在尝试寻找相邻输入框容错 (ID±1)...`);
+
+                        const currentIdNum = parseInt(targetId, 10);
+                        const fallbackIds = [currentIdNum - 1, currentIdNum + 1];
+                        let successId = null;
+
+                        for (const fId of fallbackIds) {
+                            if (fId > 0) {
+                                const fLocator = page.locator(`[data-ccli-id="${fId}"]`).first();
+                                const fCount = await fLocator.count();
+                                if (fCount > 0) {
+                                    try {
+                                        // 标记当前正在尝试的相邻元素
+                                        await fLocator.evaluate((node) => {
+                                            const el = node as HTMLElement;
+                                            el.style.backgroundColor = 'rgba(0, 255, 0, 0.6)';
+                                        }).catch(() => {});
+                                        await page.waitForTimeout(300);
+
+                                        // 尝试填充
+                                        await fLocator.fill(value, { timeout: 5000 });
+                                        successId = fId;
+                                        break; // 只要有一个成功，立即跳出循环
+                                    } catch (e) {
+                                        // 忽略相邻元素的报错，继续尝试下一个
+                                    }
+                                }
+                            }
+                        }
+
+                        if (successId !== null) {
+                            sysLogger.log(LogLevel.SUCCESS, `容错成功：已在相邻元素 [${successId}] 填入文本`);
+                            return { type: 'browser', content: `【系统自动反馈】原元素 [${targetId}] 不可输入，已触发动态容错机制，成功在相邻的输入框 [${successId}] 填入文本。` };
+                        } else {
+                            // 如果相邻元素都不行，抛出原异常
+                            throw fillError;
+                        }
+                    }
+                }
                 else if (action === 'select') {
                     const value = attributes['value'] || content;
                     await locator.selectOption({ label: value }, { timeout: 15000 });
                     sysLogger.log(LogLevel.SUCCESS, `已在 [${targetId}] 选择: ${value}`);
                     return { type: 'browser', content: `【系统自动反馈】已成功在下拉列表 [${targetId}] 选择项："${value}"。` };
                 }
-            }
-
-            else if (action === 'read') {
-                const text = await page.evaluate(() => document.body.innerText);
-                return {
-                    type: 'browser',
-                    content: `【系统自动反馈：页面纯文本内容】\n${text.substring(0, 3000)}${text.length > 3000 ? '\n... (已截断)' : ''}`
-                };
             }
 
             throw new Error(`不支持的 browser 操作: ${action}`);
