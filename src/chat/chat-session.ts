@@ -9,6 +9,7 @@ import type { ILLMProvider } from '../llm/interface.js';
 import { SessionContext } from './session-context.js';
 import { CommandDispatcher } from './command-dispatcher.js';
 import { AgentExecutor } from './agent-executor.js';
+import { ListenAction } from '../actions/listen.action.js';
 
 export interface ChatSessionOptions {
     provider: string;
@@ -21,6 +22,7 @@ export class ChatSession {
     private sessionContext: SessionContext;
     private options: ChatSessionOptions;
     private isClosing = false;
+    private pendingExternalEvent: string = '';
 
     constructor(options: ChatSessionOptions) {
         this.options = options;
@@ -48,13 +50,21 @@ export class ChatSession {
             await this.provider.init(this.options.headless);
             sysLogger.log(LogLevel.SUCCESS, '驱动已就绪！进入交互模式。\n');
 
-            // 1. 初始化系统提示词与状态机
             this.sessionContext.initialize();
             sysLogger.appendSystemPrompt(this.sessionContext.systemPrompt);
             sysLogger.appendChat('Prompt_Context', '> 💾 已归档至: [prompts.md](prompts.md)');
 
+            if (localConfig.autoListenWebhook) {
+                ListenAction.startWebhookServer();
+            }
+
+            this.contextManager.on('external_message', (msg: string) => {
+                this.pendingExternalEvent += msg + '\n\n';
+                sysLogger.log(LogLevel.WARN, `\n[📥 异步事件挂载] 收到外部事件，正在唤醒主线程...`);
+                process.stdin.emit('keypress', '', { name: 'return' });
+            });
+
             while (true) {
-                // 2. 统筹 Token 用量预警
                 const tokens = this.contextManager.currentTotalTokens;
                 const max = localConfig.modelMaxTokens;
                 const ratio = tokens / max;
@@ -70,7 +80,6 @@ export class ChatSession {
                     tokenPrefix = chalk.green(tokenPrefix);
                 }
 
-                // 3. UI 层捕获用户输入
                 let userInput = '';
                 try {
                     userInput = await input({
@@ -85,15 +94,19 @@ export class ChatSession {
                     throw err;
                 }
 
-                const text = userInput.trim();
-                if (!text) continue;
+                let text = userInput.trim();
 
-                // 4. 交给拦截器处理系统级本地指令 (/recap, exit 等)
+                if (this.pendingExternalEvent) {
+                    text = (this.pendingExternalEvent + text).trim();
+                    this.pendingExternalEvent = '';
+                } else if (!text) {
+                    continue;
+                }
+
                 const dispatchResult = CommandDispatcher.handle(text, this.contextManager, this.options.provider);
                 if (dispatchResult === 'exit') break;
                 if (dispatchResult === 'continue') continue;
 
-                // 5. 组合动态上下文提示，更新历史记忆
                 const promptWithHint = this.contextManager.getPromptWithHints(text);
                 this.contextManager.addMessage('User', text);
 
@@ -103,7 +116,6 @@ export class ChatSession {
 
                 sysLogger.appendChat('Raw_User', text);
                 if (!this.sessionContext.isFirstTurn) {
-                    // 针对 LMStudio：若没有额外追加的系统隐式提示，则不重复记录 Prompt_Context
                     if (this.provider.name !== 'LMStudioAPI' || promptWithHint !== text) {
                         sysLogger.appendChat('Prompt_Context', promptWithHint);
                     }
@@ -111,7 +123,6 @@ export class ChatSession {
 
                 this.sessionContext.isFirstTurn = false;
 
-                // 6. 下沉到 Agent 执行引擎，屏蔽工具调用的底层细节
                 await AgentExecutor.execute(
                     this.provider,
                     this.contextManager,

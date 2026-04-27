@@ -2,7 +2,6 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
-// 定义全局配置 Schema
 export interface CcliConfig {
     initialized: boolean;
     lastWorkspace: string;
@@ -23,7 +22,11 @@ export const localConfig = {
     lmstudioModel: 'local-model',
     maxBinaryUploads: { default: 3 } as Record<string, number>,
     ioWait: 500,
-    windowWait: 3000
+    windowWait: 3000,
+    openilinkApiBase: 'http://127.0.0.1:3000/api/v1',
+    openilinkToken: '',
+    webhookPort: 8080,
+    autoListenWebhook: true
 };
 
 const parseConfig = (filePath: string) => {
@@ -91,6 +94,18 @@ const parseConfig = (filePath: string) => {
         if (key.trim() === 'WINDOW_WAIT' && value) {
             localConfig.windowWait = parseInt(value, 10) || 3000;
         }
+        if (key.trim() === 'OPENILINK_API_BASE' && value) {
+            localConfig.openilinkApiBase = value;
+        }
+        if (key.trim() === 'OPENILINK_TOKEN' && value) {
+            localConfig.openilinkToken = value;
+        }
+        if (key.trim() === 'WEBHOOK_PORT' && value) {
+            localConfig.webhookPort = parseInt(value, 10) || 8080;
+        }
+        if (key.trim() === 'AUTO_LISTEN_WEBHOOK' && value) {
+            localConfig.autoListenWebhook = value.toLowerCase() === 'true';
+        }
     });
 };
 
@@ -103,18 +118,16 @@ export function getMaskedConfig() {
     return {
         ...localConfig,
         defaultApiKey: localConfig.defaultApiKey ? maskStr(localConfig.defaultApiKey) : '',
-        siliconflowApiKey: localConfig.siliconflowApiKey ? maskStr(localConfig.siliconflowApiKey) : ''
+        siliconflowApiKey: localConfig.siliconflowApiKey ? maskStr(localConfig.siliconflowApiKey) : '',
+        openilinkToken: localConfig.openilinkToken ? maskStr(localConfig.openilinkToken) : ''
     };
 }
 
 try {
-    // 读取用户全局目录配置作为兜底
     const globalConfigPath = path.resolve(os.homedir(), '.ccli', 'config', '01参数.md');
     parseConfig(globalConfigPath);
 
-    // 读取当前项目配置，优先覆盖
     const localConfigPath = path.resolve(process.cwd(), 'config', '01参数.md');
     parseConfig(localConfigPath);
 } catch (e) {
-    // 忽略配置文件读取异常，静默回退至默认值
 }

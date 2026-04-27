@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getEncoding } from 'js-tiktoken';
 import { localConfig } from './config.js';
+import { EventEmitter } from 'events';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
@@ -12,7 +13,7 @@ export interface ChatMessage {
     content: string;
 }
 
-export class ContextManager {
+export class ContextManager extends EventEmitter {
     public static activeInstance: ContextManager | null = null;
     private chatHistory: ChatMessage[] = [];
     private cachedHintPrompt: string = '';
@@ -23,6 +24,7 @@ export class ContextManager {
     public binaryUploadCount: number = 0;
 
     constructor() {
+        super();
         ContextManager.activeInstance = this;
         this.loadHintPrompt();
         try {

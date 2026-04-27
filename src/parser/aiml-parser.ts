@@ -25,7 +25,9 @@ export class AIMLParser {
 
         // 匹配闭合标签 <tag attr="val">content</tag> 与自闭合标签 <tag attr="val" />
         const tagRegex = /<([a-zA-Z0-9_-]+)([^>]*?)(?:>([\s\S]*?)<\/\1>|\/>)/gi;
-        const attrRegex = /([a-zA-Z0-9_-]+)=["']([^"']+)["']/gi;
+        
+        // 优化属性解析正则：支持双引号或单引号包裹，并允许值内部包含另一种引号
+        const attrRegex = /([a-zA-Z0-9_-]+)=(?:'([^']*)'|"([^"]*)")/gi;
 
         let match;
         while ((match = tagRegex.exec(responseText)) !== null) {
@@ -36,13 +38,13 @@ export class AIMLParser {
             const attributes: Record<string, string> = {};
             let attrMatch;
             while ((attrMatch = attrRegex.exec(attrString)) !== null) {
-                attributes[attrMatch[1]!] = attrMatch[2]!;
+                // 取第2组（单引号）或第3组（双引号）中的非空值
+                attributes[attrMatch[1]!] = attrMatch[2] ?? attrMatch[3] ?? '';
             }
 
             nodes.push({ tag, attributes, content });
         }
 
-        // 如果没有任何标签，但有文本内容，将其包装为隐式 <text> 标签
         if (nodes.length === 0 && responseText.trim()) {
             nodes.push({ tag: 'text', attributes: {}, content: responseText.trim() });
         }
@@ -81,7 +83,6 @@ export class AIMLParser {
             const actionInstance = ActionRegistry.get(node.tag);
 
             if (!actionInstance) {
-                // 尝试在 macros 目录下寻找同名的动态宏技能
                 const macroFilePath = path.resolve(PKG_ROOT, 'macros', `${node.tag}.md`);
                 if (fs.existsSync(macroFilePath)) {
                     sysLogger.log(LogLevel.ACTION, `识别到动态宏技能标签: <${node.tag}>，正在展开执行...`);
@@ -95,28 +96,18 @@ export class AIMLParser {
                             sysLogger.log(LogLevel.INFO, `[预检] 当前技能依赖前置条件: ${requiresMatch[1].trim()}`);
                         }
 
-                        // 移除文件顶部的 YAML Meta 头 (--- xxx ---)
                         let template = macroRawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
 
-                        // 注入 {_content_} 代表标签内部的文本内容
-                        const rawArgValue = node.content
-                            .replace(/`/g, '``')
-                            .replace(/"/g, '`"')
-                            .replace(/\$/g, '`$');
+                        // 注入 {_content_}：这里不对引号做转义，保留原始内容以适配 JSON
+                        const rawArgValue = node.content;
                         template = template.replace(/\{_content_\}/g, () => rawArgValue);
 
-                        // 解析宏定义中的 params，映射到 XML 属性传参
                         const attrMatch = macroRawContent.match(/params:\s*(.+)/);
                         const paramNames = attrMatch && attrMatch[1] ? attrMatch[1].split(',').map(s => s.trim()) : [];
                         
                         for (let i = 0; i < paramNames.length; i++) {
                             const paramName = paramNames[i];
                             let argValue = node.attributes[paramName] || '';
-                            argValue = argValue
-                                .replace(/`/g, '``')
-                                .replace(/"/g, '`"')
-                                .replace(/\$/g, '`$');
-
                             template = template.replace(new RegExp(`\\{${paramName}\\}`, 'g'), () => argValue);
                         }
 

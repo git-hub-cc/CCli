@@ -1,3 +1,5 @@
+# [DEPRECATED] 该脚本作为 UIA 物理控制的备用兜底方案保留。
+# 现已切换至 OpeniLink Hub API (macros/weixin_send.md) 进行静默发送。
 import sys
 import time
 import subprocess
