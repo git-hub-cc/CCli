@@ -177,7 +177,7 @@ export class BrowserAction extends BaseAction {
                 return {
                     type: 'browser',
                     content: logContent,
-                    payload: { fullContent }
+                    payload: { fullContent, isStatefulOverwrite: 'browser_scan' }
                 };
             }
 

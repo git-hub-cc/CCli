@@ -108,6 +108,14 @@ export class Logger {
         this.traceBuffer = [];
     }
 
+    flushAllSync() {
+        // 强制清空并写入所有内存中的 Trace 日志
+        // (fs.appendFileSync 本身是同步的，因此其他聊天记录已直接落盘)
+        if (this.traceBuffer.length > 0) {
+            this.flushActionTrace('system_flush');
+        }
+    }
+
     private appendToFile(filePath: string, role: LogRole, content: string) {
         if (!filePath) return;
         const entry = `### [${new Date().toLocaleTimeString()}] ${role}:\n\n${content}\n\n---\n\n`;

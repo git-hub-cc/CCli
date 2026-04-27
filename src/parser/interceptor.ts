@@ -7,6 +7,7 @@ export interface InterceptorResult {
     needsRestartSession: boolean;
     restartAction: string;
     restartKeepLast: number;
+    pruneTag?: string;
 }
 
 export class SystemInterceptor {
@@ -16,7 +17,8 @@ export class SystemInterceptor {
             logFeedbacks: [],
             needsRestartSession: false,
             restartAction: '',
-            restartKeepLast: 0
+            restartKeepLast: 0,
+            pruneTag: undefined
         };
 
         if (feedbacks.length > 0) {
@@ -53,6 +55,9 @@ export class SystemInterceptor {
                 }
                 
                 if (fb.payload && fb.payload.fullContent) {
+                    if (fb.payload.isStatefulOverwrite) {
+                        result.pruneTag = fb.payload.isStatefulOverwrite;
+                    }
                     result.logFeedbacks.push(fb.content);
                     result.cleanFeedbacks.push(fb.payload.fullContent);
                 } else {

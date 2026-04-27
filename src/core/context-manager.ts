@@ -127,6 +127,27 @@ export class ContextManager {
         this.recountTokens();
     }
 
+    pruneHistoryByTag(tag: string) {
+        let pruned = false;
+        const keywordMap: Record<string, string> = {
+            'browser_scan': '【系统自动反馈：网页交互元素扫描结果】',
+            'uia_scan': '【系统自动反馈：UIA 交互元素扫描结果】'
+        };
+        const keyword = keywordMap[tag];
+        if (!keyword) return;
+
+        for (let i = this.chatHistory.length - 1; i >= 0; i--) {
+            const msg = this.chatHistory[i];
+            if (msg.role === 'System_Feedback' && msg.content.includes(keyword)) {
+                msg.content = `[历史 ${tag} 扫描数据已失效，被系统自动折叠回收]`;
+                pruned = true;
+            }
+        }
+        if (pruned) {
+            this.recountTokens();
+        }
+    }
+
     formatHistoryString(): string {
         let historyStr = '';
         for (let i = 0; i < this.chatHistory.length - 1; i++) {

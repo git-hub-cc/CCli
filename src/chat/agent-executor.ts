@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { AIMLParser } from '../parser/aiml-parser.js';
 import { SystemInterceptor } from '../parser/interceptor.js';
@@ -42,6 +44,9 @@ export class AgentExecutor {
                 contextManager.popMessage();
                 contextManager.executeAction(interceptResult.restartAction, interceptResult.restartKeepLast);
 
+                // 1. 强制日志同步落盘，防止数据竞态丢失
+                sysLogger.flushAllSync();
+
                 await provider.resetSession();
                 sessionContext.reset();
 
@@ -51,8 +56,25 @@ export class AgentExecutor {
                 const historyStr = contextManager.formatHistoryString();
                 const lastUserContent = contextManager.getLastMessage()?.content || originalUserInput;
 
-                currentAskPrompt = `${sessionContext.systemPrompt}\n\n【系统提示：以下是上下文修剪后为你保留的最近历史记录】\n${historyStr}\n\n【当前用户最新输入】\n${lastUserContent}`;
-                sysLogger.appendChat('System_Feedback', '【系统已执行上下文清理并重置会话状态】');
+                // 2. 生成历史快照文件
+                const snapshotPath = path.join(sysLogger.getSessionDir(), 'chat-snapshot.md');
+                fs.writeFileSync(snapshotPath, `# 历史对话记录快照\n\n${historyStr}`, 'utf-8');
+
+                // 3. 将核心设定与历史快照作为物理文件挂载
+                const promptsPath = path.join(sysLogger.getSessionDir(), 'prompts.md');
+                await provider.uploadFile(promptsPath, false);
+                await provider.uploadFile(snapshotPath, false);
+
+                // 将挂载文件的 Token 开销补入上下文管理器 (粗略估算)
+                const promptsContent = fs.readFileSync(promptsPath, 'utf-8');
+                const snapshotContent = fs.readFileSync(snapshotPath, 'utf-8');
+                const extraTokens = contextManager.calculateRawTokens(promptsContent + snapshotContent);
+                contextManager.addExtraTokens(extraTokens);
+
+                // 4. 重构并精简发送给大模型的 Prompt
+                currentAskPrompt = `【系统提示：由于上下文超限，当前会话已重置。核心身份设定已挂载于 \`prompts.md\`，你与我的历史对话记录快照已挂载于 \`chat-snapshot.md\`（仅作历史参考）。请读取文件后，基于最后一条用户输入继续执行任务。】\n\n【当前用户最新输入】\n${lastUserContent}`;
+                
+                sysLogger.appendChat('System_Feedback', '【系统已执行上下文清理并重置会话状态，历史快照已挂载】');
 
                 currentDepth--; // 重组回合不消耗循环深度计数
                 continue;
@@ -60,6 +82,11 @@ export class AgentExecutor {
 
             // 处理普通工具执行反馈并交还给大模型
             if (interceptResult.cleanFeedbacks.length > 0 || interceptResult.logFeedbacks.length > 0) {
+                // 触发精细化状态折叠，释放无用的旧覆盖型数据占用
+                if (interceptResult.pruneTag) {
+                    contextManager.pruneHistoryByTag(interceptResult.pruneTag);
+                }
+
                 // 用于写入硬盘的富文本日志（含链接等）
                 const rawFeedbackStr = interceptResult.logFeedbacks.join('\n\n');
 

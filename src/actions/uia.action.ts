@@ -150,7 +150,7 @@ export class UiaAction extends BaseAction {
                 return {
                     type: 'uia',
                     content: logContent,
-                    payload: { fullContent }
+                    payload: { fullContent, isStatefulOverwrite: 'uia_scan' }
                 };
             }
 

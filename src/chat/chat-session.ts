@@ -103,7 +103,10 @@ export class ChatSession {
 
                 sysLogger.appendChat('Raw_User', text);
                 if (!this.sessionContext.isFirstTurn) {
-                    sysLogger.appendChat('Prompt_Context', promptWithHint);
+                    // 针对 LMStudio：若没有额外追加的系统隐式提示，则不重复记录 Prompt_Context
+                    if (this.provider.name !== 'LMStudioAPI' || promptWithHint !== text) {
+                        sysLogger.appendChat('Prompt_Context', promptWithHint);
+                    }
                 }
 
                 this.sessionContext.isFirstTurn = false;
