@@ -6,7 +6,7 @@ import { MimoWebProvider } from './mimo-web.js';
 import { SiliconFlowApiProvider } from './siliconflow-api.js';
 import { MockTestProvider } from './mock-test.js';
 import { KimiWebProvider } from './kimi-web.js';
-import { LMStudioApiProvider } from './lmstudio-pai.js';
+import { LMStudioApiProvider } from './lmstudio-api.js';
 
 export class LLMProviderFactory {
     static create(providerName: string): ILLMProvider {

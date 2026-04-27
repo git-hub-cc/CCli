@@ -11,6 +11,50 @@ export class LMStudioApiProvider implements ILLMProvider {
 
     async init(headless: boolean = false): Promise<void> {
         sysLogger.log(LogLevel.INFO, 'LM Studio API 驱动已就绪。');
+
+        try {
+            const baseUrl = localConfig.lmstudioApiBase || 'http://127.0.0.1:1234/v1';
+            const modelsUrl = baseUrl.replace(/\/v1\/?$/, '') + '/api/v0/models';
+            const response = await fetch(modelsUrl);
+
+            if (response.ok) {
+                const data = await response.json() as any;
+                const models = data.data || [];
+
+                const currentModelId = localConfig.lmstudioModel || "local-model";
+                let targetModel = models.find((m: any) => m.id === currentModelId);
+
+                if (!targetModel && models.length > 0) {
+                    targetModel = models.find((m: any) => !m.id.toLowerCase().includes('embed'));
+
+                    if (targetModel) {
+                        sysLogger.log(LogLevel.INFO, `[智能探测] 自动捕获到活跃对话模型: ${targetModel.id}`);
+                        localConfig.lmstudioModel = targetModel.id;
+                    }
+                }
+
+                if (!targetModel) {
+                    sysLogger.log(LogLevel.WARN, `[警告] 未能在 LM Studio 中找到可用的对话模型。`);
+                    return;
+                }
+
+                const contextLength = targetModel.loaded_context_length
+                    || targetModel.max_context_length
+                    || targetModel.context_window
+                    || targetModel.context_length
+                    || targetModel.max_tokens
+                    || targetModel.trained_words;
+
+                if (contextLength && typeof contextLength === 'number') {
+                    localConfig.modelMaxTokens = contextLength;
+                    sysLogger.log(LogLevel.SUCCESS, `已动态同步模型上下文长度: ${contextLength} Tokens`);
+                } else {
+                    sysLogger.log(LogLevel.WARN, `[诊断] 成功捕获模型，但其元数据未暴露 context_length 字段，维持默认值。`);
+                }
+            }
+        } catch (e: any) {
+            sysLogger.log(LogLevel.WARN, `尝试动态获取模型元数据失败，将退回使用本地静态配置。`);
+        }
     }
 
     async ask(prompt: string, history?: ChatMessage[]): Promise<string> {
