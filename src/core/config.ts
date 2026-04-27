@@ -19,6 +19,8 @@ export const localConfig = {
     defaultModel: 'deepseek-r1-0528',
     siliconflowApiKey: '',
     siliconflowModel: 'deepseek-ai/DeepSeek-V2.5',
+    lmstudioApiBase: 'http://127.0.0.1:1234/v1',
+    lmstudioModel: 'local-model',
     maxBinaryUploads: { default: 3 } as Record<string, number>,
     ioWait: 500,
     windowWait: 3000
@@ -65,6 +67,12 @@ const parseConfig = (filePath: string) => {
         }
         if (key.trim() === 'SILICONFLOW_MODEL' && value) {
             localConfig.siliconflowModel = value;
+        }
+        if (key.trim() === 'LMSTUDIO_API_BASE' && value) {
+            localConfig.lmstudioApiBase = value;
+        }
+        if (key.trim() === 'LMSTUDIO_MODEL' && value) {
+            localConfig.lmstudioModel = value;
         }
         if (key.trim() === 'MAX_BINARY_UPLOADS' && value) {
             const limits: Record<string, number> = {};

@@ -22,7 +22,7 @@ program
     .command('chat')
     .description('开启连续对话模式 (Agent 模式)')
     .option('--headless', '后台静默运行浏览器 (节省内存，更快响应)')
-    .option('-p, --provider <name>', '指定底层模型驱动 (支持: gemini, doubao, agentrouter, mimo, siliconflow, kimi)')
+    .option('-p, --provider <name>', '指定底层模型驱动 (支持: gemini, doubao, agentrouter, mimo, siliconflow, kimi, lmstudio)')
     .option('--recap-mode <mode>', '作为子进程执行单次复盘模式 (支持: macros, data, prompts)')
     .option('--history-file <path>', '复盘模式专用的上下文快照 JSON 文件路径')
     .action(async (options) => {
@@ -34,7 +34,6 @@ program
 
         registerAllActions();
 
-        // 独立处理复盘模式，不污染常规会话的生命周期
         if (options.recapMode && options.historyFile) {
             try {
                 const provider = LLMProviderFactory.create(options.provider || localConfig.defaultProvider || 'gemini');

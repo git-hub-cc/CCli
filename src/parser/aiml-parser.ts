@@ -23,8 +23,8 @@ export class AIMLParser {
     static parse(responseText: string): ParsedNode[] {
         const nodes: ParsedNode[] = [];
 
-        // 匹配闭合标签 <tag attr="val">content</tag>、自闭合标签 <tag attr="val" /> 或未闭合标签 <tag attr="val">
-        const tagRegex = /<([a-zA-Z0-9_-]+)([^>]*?)(?:>([\s\S]*?)<\/\1>|\/>|>)/gi;
+        // 匹配闭合标签 <tag attr="val">content</tag> 与自闭合标签 <tag attr="val" />
+        const tagRegex = /<([a-zA-Z0-9_-]+)([^>]*?)(?:>([\s\S]*?)<\/\1>|\/>)/gi;
         const attrRegex = /([a-zA-Z0-9_-]+)=["']([^"']+)["']/gi;
 
         let match;

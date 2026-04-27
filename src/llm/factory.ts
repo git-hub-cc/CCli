@@ -6,6 +6,7 @@ import { MimoWebProvider } from './mimo-web.js';
 import { SiliconFlowApiProvider } from './siliconflow-api.js';
 import { MockTestProvider } from './mock-test.js';
 import { KimiWebProvider } from './kimi-web.js';
+import { LMStudioApiProvider } from './lmstudio-pai.js';
 
 export class LLMProviderFactory {
     static create(providerName: string): ILLMProvider {
@@ -22,6 +23,8 @@ export class LLMProviderFactory {
             return new KimiWebProvider();
         } else if (name === 'mock') {
             return new MockTestProvider();
+        } else if (name === 'lmstudio') {
+            return new LMStudioApiProvider();
         } else {
             return new GeminiWebProvider();
         }
