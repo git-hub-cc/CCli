@@ -26,7 +26,11 @@ export const localConfig = {
     openilinkApiBase: 'http://127.0.0.1:3000/api/v1',
     openilinkToken: '',
     webhookPort: 8080,
-    autoListenWebhook: true
+    autoListenWebhook: true,
+    cloudinaryCloudName: '',
+    cloudinaryApiKey: '',
+    cloudinaryApiSecret: '',
+    incomingFileDir: '.ccli/downloads'
 };
 
 const parseConfig = (filePath: string) => {
@@ -106,6 +110,18 @@ const parseConfig = (filePath: string) => {
         if (key.trim() === 'AUTO_LISTEN_WEBHOOK' && value) {
             localConfig.autoListenWebhook = value.toLowerCase() === 'true';
         }
+        if (key.trim() === 'CLOUDINARY_CLOUD_NAME' && value) {
+            localConfig.cloudinaryCloudName = value;
+        }
+        if (key.trim() === 'CLOUDINARY_API_KEY' && value) {
+            localConfig.cloudinaryApiKey = value;
+        }
+        if (key.trim() === 'CLOUDINARY_API_SECRET' && value) {
+            localConfig.cloudinaryApiSecret = value;
+        }
+        if (key.trim() === 'INCOMING_FILE_DIR' && value) {
+            localConfig.incomingFileDir = value;
+        }
     });
 };
 
@@ -119,7 +135,8 @@ export function getMaskedConfig() {
         ...localConfig,
         defaultApiKey: localConfig.defaultApiKey ? maskStr(localConfig.defaultApiKey) : '',
         siliconflowApiKey: localConfig.siliconflowApiKey ? maskStr(localConfig.siliconflowApiKey) : '',
-        openilinkToken: localConfig.openilinkToken ? maskStr(localConfig.openilinkToken) : ''
+        openilinkToken: localConfig.openilinkToken ? maskStr(localConfig.openilinkToken) : '',
+        cloudinaryApiSecret: localConfig.cloudinaryApiSecret ? maskStr(localConfig.cloudinaryApiSecret) : ''
     };
 }
 

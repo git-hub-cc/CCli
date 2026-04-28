@@ -8,11 +8,11 @@ import path from 'path';
 export function extractMarkdownMeta(text: string): { meta: Record<string, any>, body: string } {
     const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
     if (!match) return { meta: {}, body: text };
-    
+
     const metaRaw = match[1];
     const body = match[2];
     const meta: Record<string, any> = {};
-    
+
     metaRaw.split('\n').forEach(line => {
         const parts = line.split(':');
         if (parts.length >= 2) {
@@ -121,4 +121,23 @@ export function spawnDetachedWindow(command: string, keepOpen: boolean = true) {
     }
 
     execa(winCmd, options).unref();
+}
+
+/**
+ * 封装通用文件下载功能，用于 Webhook 接收和主动通信下载
+ */
+export async function downloadFile(url: string, savePath: string, options?: RequestInit): Promise<{status: number, statusText: string}> {
+    const dir = path.dirname(savePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw new Error(`HTTP 响应异常: ${response.status} ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    fs.writeFileSync(savePath, buffer);
+
+    return { status: response.status, statusText: response.statusText };
 }

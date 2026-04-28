@@ -29,6 +29,7 @@ import { HumanAction } from './human.action.js';
 import { CaptchaAction } from './captcha.action.js';
 import { MemoryAction } from './memory.action.js';
 import { UiaAction } from './uia.action.js';
+import { CloudAction } from './cloud.action.js';
 
 /**
  * 自动实例化并注册所有核心 AIML 动作插件
@@ -65,4 +66,5 @@ export function registerAllActions() {
     ActionRegistry.register(new MemoryAction());
 
     ActionRegistry.register(new UiaAction());
+    ActionRegistry.register(new CloudAction());
 }

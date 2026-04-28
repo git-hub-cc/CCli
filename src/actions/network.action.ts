@@ -1,7 +1,7 @@
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
-import fs from 'fs';
 import path from 'path';
+import { downloadFile } from '../core/utils.js';
 
 /**
  * 处理 <network> 标签：原生 HTTP/API 通信
@@ -61,31 +61,26 @@ export class NetworkAction extends BaseAction {
                 }
             }
 
-            // 发起原生网络请求 (Node 18+ 原生支持 fetch)
-            const response = await fetch(targetUrl, fetchOptions);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP 响应异常，状态码: ${response.status} ${response.statusText}`);
-            }
-
             // 处理文件下载模式
             if (savePath || action === 'download') {
                 const finalSavePath = savePath 
                     ? (path.isAbsolute(savePath) ? savePath : path.resolve(process.cwd(), savePath))
                     : path.resolve(process.cwd(), `.ccli/downloads/download_${Date.now()}`);
                 
-                const dir = path.dirname(finalSavePath);
-                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-                const arrayBuffer = await response.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-                fs.writeFileSync(finalSavePath, buffer);
+                const { status } = await downloadFile(targetUrl, finalSavePath, fetchOptions);
 
                 sysLogger.log(LogLevel.SUCCESS, `网络资源已下载并保存至: ${finalSavePath}`);
                 return {
                     type: 'network',
-                    content: `【系统自动反馈：网络通信结果】\n文件下载成功。\n状态码: ${response.status}\n保存路径: ${finalSavePath}`
+                    content: `【系统自动反馈：网络通信结果】\n文件下载成功。\n状态码: ${status}\n保存路径: ${finalSavePath}`
                 };
+            }
+
+            // 发起原生网络请求 (Node 18+ 原生支持 fetch)
+            const response = await fetch(targetUrl, fetchOptions);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP 响应异常，状态码: ${response.status} ${response.statusText}`);
             }
 
             // 处理普通文本/JSON响应模式

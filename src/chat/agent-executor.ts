@@ -76,7 +76,8 @@ export class AgentExecutor {
                 
                 sysLogger.appendChat('System_Feedback', '【系统已执行上下文清理并重置会话状态，历史快照已挂载】');
 
-                currentDepth--; // 重组回合不消耗循环深度计数
+                // 重组回合不消耗循环深度计数
+                currentDepth--;
                 continue;
             }
 
