@@ -13,15 +13,16 @@ export class KeyboardAction extends BaseAction {
 
     async execute(attributes: Record<string, string>, content: string): Promise<ActionResult> {
         const action = attributes['action'];
+        const targetText = attributes['value'] || content;
 
         if (!action || !['text', 'type'].includes(action.toLowerCase())) {
             throw new Error('<keyboard> 标签缺少合法的 action 属性 (目前仅支持 text 或 type)');
         }
-        if (!content) {
-            throw new Error('<keyboard> 标签内容不能为空');
+        if (!targetText) {
+            throw new Error('<keyboard> 标签内容或 value 属性不能为空');
         }
 
-        sysLogger.log(LogLevel.ACTION, `准备执行物理键盘操作: [${action}] ${content}`);
+        sysLogger.log(LogLevel.ACTION, `准备执行物理键盘操作: [${action}] ${targetText}`);
 
         let originalHkl: string | null = null;
 
@@ -69,9 +70,9 @@ export class KeyboardAction extends BaseAction {
             keyboard.config.autoDelayMs = 50;
 
             if (action.toLowerCase() === 'text') {
-                await keyboard.type(content);
+                await keyboard.type(targetText);
             } else if (action.toLowerCase() === 'type') {
-                const instructions = KeyboardParser.parse(content);
+                const instructions = KeyboardParser.parse(targetText);
 
                 const hasText = instructions.some(inst => inst.type === 'text');
                 if (hasText) {
