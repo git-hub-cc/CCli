@@ -53,6 +53,7 @@
     "ora": "^8.0.1",
     "playwright": "^1.42.1",
     "screenshot-desktop": "^1.15.0",
-    "tesseract.js": "^5.0.5"
+    "tesseract.js": "^5.0.5",
+    "yaml": "^2.3.4"
   }
 }

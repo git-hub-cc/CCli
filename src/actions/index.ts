@@ -18,6 +18,7 @@ import { MemoryAction } from './memory.action.js';
 import { UiaAction } from './uia.action.js';
 import { CloudAction } from './cloud.action.js';
 import { WeixinAction } from './weixin.action.js';
+import { SkillAction } from './skill.action.js';
 
 /**
  * 自动实例化并注册所有核心 AIML 动作插件
@@ -42,4 +43,5 @@ export function registerAllActions() {
     ActionRegistry.register(new UiaAction());
     ActionRegistry.register(new CloudAction());
     ActionRegistry.register(new WeixinAction());
+    ActionRegistry.register(new SkillAction());
 }

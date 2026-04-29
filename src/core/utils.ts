@@ -7,7 +7,14 @@ import path from 'path';
  */
 export function extractMarkdownMeta(text: string): { meta: Record<string, any>, body: string } {
     const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-    if (!match) return { meta: {}, body: text };
+    if (!match) {
+        const titleMatch = text.match(/^#\s+(.+)$/m);
+        const meta: Record<string, any> = {};
+        if (titleMatch && titleMatch[1]) {
+            meta.name = titleMatch[1].trim();
+        }
+        return { meta, body: text };
+    }
 
     const metaRaw = match[1];
     const body = match[2];
@@ -36,7 +43,6 @@ export function extractMarkdownMeta(text: string): { meta: Record<string, any>, 
 export function detectWindowsShellType(command: string): 'cmd' | 'powershell' | 'neutral' {
     if (!command) return 'neutral';
 
-    // 1. 匹配 PowerShell 专属特征
     const psPatterns = [
         /\$[a-zA-Z0-9_:]+/,
         /\b[A-Z][a-z]+-[A-Z][a-z]+\b/,
@@ -45,7 +51,6 @@ export function detectWindowsShellType(command: string): 'cmd' | 'powershell' | 
         /\|\s*(%|\?|ForEach-Object|Where-Object)/
     ];
 
-    // 2. 匹配 CMD 专属特征
     const cmdPatterns = [
         /%[a-zA-Z0-9_]+%/,
         /\b(dir|del|copy|xcopy|rmdir|mkdir|ren|move)\s+\/[a-zA-Z]\b/i,

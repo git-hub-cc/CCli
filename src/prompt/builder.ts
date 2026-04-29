@@ -6,6 +6,7 @@ import { IPromptPart } from './parts/interface.js';
 import { StaticPart } from './parts/static.part.js';
 import { MacroSkillPart } from './parts/macro-skill.part.js';
 import { DataTemplatePart } from './parts/data-template.part.js';
+import { SkillCatalogPart } from './parts/skill-catalog.part.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../../');
@@ -56,6 +57,7 @@ export class PromptBuilder {
             new StaticPart(this.promptsDir, '01角色定义.md'),
             new StaticPart(this.promptsDir, '02系统指令库.md'),
             new MacroSkillPart(this.promptsDir, this.macroDir),
+            new SkillCatalogPart(),
             new DataTemplatePart(this.dataDir),
             new StaticPart(this.promptsDir, '03角色微调.md')
         ];
