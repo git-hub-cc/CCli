@@ -1,165 +1,191 @@
 ---
 name: axolotl
-description: "Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO)."
+description: "Axolotl: config-driven LLM fine-tuning framework. SFT, DPO, RLHF for Llama, Mistral, Falcon, Mixtral."
 version: 1.0.0
-author: Orchestra Research
-license: MIT
-dependencies: [axolotl, torch, transformers, datasets, peft, accelerate, deepspeed]
 metadata:
   hermes:
-    tags: [Fine-Tuning, Axolotl, LLM, LoRA, QLoRA, DPO, KTO, ORPO, GRPO, YAML, HuggingFace, DeepSpeed, Multimodal]
-
+    tags: [LLM, fine-tuning, axolotl, LoRA, QLoRA, DPO, SFT, training, GPU, config-driven]
+    related_skills: [unsloth, trl-fine-tuning, vllm, huggingface-hub]
 ---
 
-# Axolotl Skill
+# Axolotl Fine-tuning
 
-## What's inside
+## Platform Requirements
 
-Expert guidance for fine-tuning LLMs with Axolotl — YAML configs, 100+ models, LoRA/QLoRA, DPO/KTO/ORPO/GRPO, multimodal support.
+> **Windows users — WSL2 required.**
+>
+> Axolotl is a Linux-native framework. Native Windows (CMD / PowerShell) is **not supported** because Axolotl depends on:
+> - [Flash Attention 2](https://github.com/Dao-AILab/flash-attention) — Linux-only build system (requires `ninja`, gcc toolchain)
+> - [DeepSpeed](https://www.deepspeed.ai/) — no native Windows support
+> - [OpenAI Triton](https://github.com/openai/triton) — no native Windows wheel
+> - Complex `nvcc` (CUDA Toolkit) compile steps that require Linux headers
+>
+> **Quick WSL2 setup:**
+> ```powershell
+> # In PowerShell (Admin) — one-time setup
+> wsl --install                  # installs WSL2 + Ubuntu
+> wsl --set-default-version 2
+> # After reboot, open Ubuntu from Start Menu and continue inside WSL2
+> ```
+> All commands below are run **inside the WSL2 terminal**.
+>
+> **Recommended alternatives for quick iteration on Windows:**
+> - [Google Colab](https://colab.research.google.com/) + axolotl Docker image
+> - [RunPod](https://runpod.io/) or [Lambda Labs](https://lambdalabs.com/) cloud GPU instances (pre-configured Linux)
 
-Comprehensive assistance with axolotl development, generated from official documentation.
+## When to use
 
-## When to Use This Skill
+Use when users need: config-file-driven LLM fine-tuning, multi-GPU training, custom dataset formats, advanced training recipes (DPO, RLHF, Mixtral MoE), or when they want reproducible training runs managed via YAML configs rather than writing Python code.
 
-This skill should be triggered when:
-- Working with axolotl
-- Asking about axolotl features or APIs
-- Implementing axolotl solutions
-- Debugging axolotl code
-- Learning axolotl best practices
+Axolotl is the go-to framework when:
+- Training requires **distributed/multi-GPU** setup (`torchrun`, DeepSpeed ZeRO)
+- The dataset is in a **non-standard format** (ShareGPT, Alpaca, completion, etc.)
+- Users want to version-control training configs as YAML
 
-## Quick Reference
+## Stack
 
-### Common Patterns
+| Component | Tool |
+|-----------|------|
+| Core | Axolotl (pip / Docker) |
+| Training backends | PyTorch + FSDP / DeepSpeed ZeRO 2/3 |
+| Attention | Flash Attention 2 (required for long contexts) |
+| Quantization | bitsandbytes 4-bit, GPTQ |
+| Multi-GPU | `torchrun` / `accelerate launch` |
+| Config | YAML (per-run, version-controllable) |
 
-**Pattern 1:** To validate that acceptable data transfer speeds exist for your training job, running NCCL Tests can help pinpoint bottlenecks, for example:
+## Installation
 
-```
-./build/all_reduce_perf -b 8 -e 128M -f 2 -g 3
-```
+### Linux / WSL2 (recommended)
 
-**Pattern 2:** Configure your model to use FSDP in the Axolotl yaml. For example:
+```bash
+# Install from pip
+pip install axolotl
 
-```
-fsdp_version: 2
-fsdp_config:
-  offload_params: true
-  state_dict_type: FULL_STATE_DICT
-  auto_wrap_policy: TRANSFORMER_BASED_WRAP
-  transformer_layer_cls_to_wrap: LlamaDecoderLayer
-  reshard_after_forward: true
-```
-
-**Pattern 3:** The context_parallel_size should be a divisor of the total number of GPUs. For example:
-
-```
-context_parallel_size
-```
-
-**Pattern 4:** For example: - With 8 GPUs and no sequence parallelism: 8 different batches processed per step - With 8 GPUs and context_parallel_size=4: Only 2 different batches processed per step (each split across 4 GPUs) - If your per-GPU micro_batch_size is 2, the global batch size decreases from 16 to 4
-
-```
-context_parallel_size=4
-```
-
-**Pattern 5:** Setting save_compressed: true in your configuration enables saving models in a compressed format, which: - Reduces disk space usage by approximately 40% - Maintains compatibility with vLLM for accelerated inference - Maintains compatibility with llmcompressor for further optimization (example: quantization)
-
-```
-save_compressed: true
-```
-
-**Pattern 6:** Note It is not necessary to place your integration in the integrations folder. It can be in any location, so long as it’s installed in a package in your python env. See this repo for an example: https://github.com/axolotl-ai-cloud/diff-transformer
-
-```
-integrations
+# Or from source (latest features)
+git clone https://github.com/axolotl-ai-cloud/axolotl
+cd axolotl
+pip install -e ".[flash-attn,deepspeed]"
 ```
 
-**Pattern 7:** Handle both single-example and batched data. - single example: sample[‘input_ids’] is a list[int] - batched data: sample[‘input_ids’] is a list[list[int]]
+### Docker (cross-platform — runs via WSL2 Docker Desktop on Windows)
 
-```
-utils.trainer.drop_long_seq(sample, sequence_len=2048, min_sequence_len=2)
-```
+```bash
+# Pull official image
+docker pull winglian/axolotl:main-latest
 
-### Example Code Patterns
-
-**Example 1** (python):
-```python
-cli.cloud.modal_.ModalCloud(config, app=None)
-```
-
-**Example 2** (python):
-```python
-cli.cloud.modal_.run_cmd(cmd, run_folder, volumes=None)
+# Run training
+docker run --gpus all -it --rm \
+  -v $(pwd):/workspace \
+  winglian/axolotl:main-latest \
+  python -m axolotl.cli.train /workspace/config.yaml
 ```
 
-**Example 3** (python):
-```python
-core.trainers.base.AxolotlTrainer(
-    *_args,
-    bench_data_collator=None,
-    eval_data_collator=None,
-    dataset_tags=None,
-    **kwargs,
-)
+## Workflow
+
+### 1. Write a Config YAML
+
+```yaml
+# config.yaml — SFT example (Llama 3.2 3B)
+base_model: unsloth/Llama-3.2-3B-Instruct
+model_type: LlamaForCausalLM
+tokenizer_type: AutoTokenizer
+
+load_in_8bit: false
+load_in_4bit: true           # QLoRA
+strict: false
+
+datasets:
+  - path: iamtarun/python_code_instructions_18k_alpaca
+    type: alpaca
+
+dataset_prepared_path: data/prepared
+val_set_size: 0.05
+output_dir: ./outputs/llama-3b-sft
+
+sequence_len: 2048
+sample_packing: true          # flash-attention packing for speed
+pad_to_sequence_len: true
+
+adapter: lora
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - v_proj
+  - k_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+gradient_accumulation_steps: 4
+micro_batch_size: 2
+num_epochs: 3
+optimizer: adamw_bnb_8bit
+lr_scheduler: cosine
+learning_rate: 2e-4
+train_on_inputs: false
+bf16: auto
+tf32: false
+gradient_checkpointing: true
+logging_steps: 1
+flash_attention: true         # requires Flash Attention 2 (Linux only)
+warmup_ratio: 0.03
+saves_per_epoch: 1
 ```
 
-**Example 4** (python):
-```python
-core.trainers.base.AxolotlTrainer.log(logs, start_time=None)
+### 2. Preprocess Dataset (optional, for speed)
+
+```bash
+python -m axolotl.cli.preprocess config.yaml
 ```
 
-**Example 5** (python):
-```python
-prompt_strategies.input_output.RawInputOutputPrompter()
+### 3. Train
+
+```bash
+# Single GPU
+python -m axolotl.cli.train config.yaml
+
+# Multi-GPU (2 GPUs) via torchrun
+torchrun --nproc_per_node=2 -m axolotl.cli.train config.yaml
+
+# Multi-GPU with DeepSpeed ZeRO-3
+accelerate launch -m axolotl.cli.train config.yaml --deepspeed deepspeed_configs/zero3.json
 ```
 
-## Reference Files
+### 4. Inference / Merge
 
-This skill includes comprehensive documentation in `references/`:
+```bash
+# Merge LoRA into base model
+python -m axolotl.cli.merge_lora config.yaml --lora_model_dir=./outputs/llama-3b-sft
 
-- **api.md** - Api documentation
-- **dataset-formats.md** - Dataset-Formats documentation
-- **other.md** - Other documentation
+# Quick inference test
+python -m axolotl.cli.inference config.yaml \
+  --lora_model_dir=./outputs/llama-3b-sft \
+  --gradio                 # opens a Gradio UI
+```
 
-Use `view` to read specific reference files when detailed information is needed.
+## Key Config Patterns
 
-## Working with This Skill
+| Goal | Config key | Value |
+|------|-----------|-------|
+| QLoRA (4-bit) | `load_in_4bit: true` + `adapter: lora` | saves 50-70% VRAM |
+| Full fine-tune | `adapter:` (omit) + `load_in_4bit: false` | needs large VRAM |
+| DPO training | `rl: dpo` + `datasets[].type: chat_template.default` | RLHF alignment |
+| Flash Attention | `flash_attention: true` | 2-3x throughput (Linux only) |
+| Resume training | `resume_from_checkpoint: outputs/checkpoint-500` | picks up from last ckpt |
+| Sample packing | `sample_packing: true` | fills context window for efficiency |
 
-### For Beginners
-Start with the getting_started or tutorials reference files for foundational concepts.
+## Dataset Format Reference
 
-### For Specific Features
-Use the appropriate category reference file (api, guides, etc.) for detailed information.
+See `references/dataset-formats.md` for all supported dataset types (Alpaca, ShareGPT, completion, chat, DPO pairs, and custom templates).
 
-### For Code Examples
-The quick reference section above contains common patterns extracted from the official docs.
+## References
 
-## Resources
-
-### references/
-Organized documentation extracted from official sources. These files contain:
-- Detailed explanations
-- Code examples with language annotations
-- Links to original documentation
-- Table of contents for quick navigation
-
-### scripts/
-Add helper scripts here for common automation tasks.
-
-### assets/
-Add templates, boilerplate, or example projects here.
-
-## Notes
-
-- This skill was automatically generated from official documentation
-- Reference files preserve the structure and examples from source docs
-- Code examples include language detection for better syntax highlighting
-- Quick reference patterns are extracted from common usage examples in the docs
-
-## Updating
-
-To refresh this skill with updated documentation:
-1. Re-run the scraper with the same configuration
-2. The skill will be rebuilt with the latest information
-
-
+| File | Contents |
+|------|----------|
+| `references/api.md` | Full Axolotl config schema reference |
+| `references/dataset-formats.md` | All supported dataset formats with examples |
+| `references/other.md` | Advanced configs: DeepSpeed, FSDP, curriculum learning |
+| `references/index.md` | Reference index |

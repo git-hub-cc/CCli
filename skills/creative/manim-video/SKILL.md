@@ -28,7 +28,25 @@ This is educational cinema. Every frame teaches. Every animation reveals structu
 
 ## Prerequisites
 
-Run `scripts/setup.sh` to verify all dependencies. Requires: Python 3.10+, Manim Community Edition v0.20+ (`pip install manim`), LaTeX (`texlive-full` on Linux, `mactex` on macOS), and ffmpeg. Reference docs tested against Manim CE v0.20.1.
+> **Windows users:** Run `scripts/setup.ps1` instead of `setup.sh`. All commands below have PowerShell equivalents — see the **Windows** callouts in each step.
+
+Run the appropriate setup check for your platform:
+
+| Platform | Command |
+|----------|---------|
+| Linux / macOS | `bash scripts/setup.sh` |
+| Windows (PowerShell) | `pwsh -File scripts/setup.ps1` |
+
+Requires: Python 3.10+, Manim Community Edition v0.20+ (`pip install manim`), LaTeX, and ffmpeg.
+
+| Dependency | Linux | macOS | Windows |
+|------------|-------|-------|---------|
+| Python 3.10+ | `apt install python3` | `brew install python` | [python.org](https://www.python.org/) or `winget install Python.Python.3` |
+| Manim CE | `pip install manim` | `pip install manim` | `pip install manim` |
+| LaTeX | `apt install texlive-full` | `brew install --cask mactex-no-gui` | [MiKTeX](https://miktex.org/download) (auto-installs packages on demand) |
+| ffmpeg | `apt install ffmpeg` | `brew install ffmpeg` | `winget install Gyan.FFmpeg` or `choco install ffmpeg` |
+
+Reference docs tested against Manim CE v0.20.1.
 
 ## Modes
 
@@ -170,6 +188,13 @@ Key patterns:
 ### Step 3: Render
 
 ```bash
+# Linux / macOS / Git Bash / WSL
+manim -ql script.py Scene1_Introduction Scene2_CoreConcept  # draft
+manim -qh script.py Scene1_Introduction Scene2_CoreConcept  # production
+```
+
+```powershell
+# Windows PowerShell (identical — manim is a cross-platform Python entry point)
 manim -ql script.py Scene1_Introduction Scene2_CoreConcept  # draft
 manim -qh script.py Scene1_Introduction Scene2_CoreConcept  # production
 ```
@@ -177,6 +202,7 @@ manim -qh script.py Scene1_Introduction Scene2_CoreConcept  # production
 ### Step 4: Stitch
 
 ```bash
+# Linux / macOS / Git Bash / WSL
 cat > concat.txt << 'EOF'
 file 'media/videos/script/480p15/Scene1_Introduction.mp4'
 file 'media/videos/script/480p15/Scene2_CoreConcept.mp4'
@@ -184,9 +210,24 @@ EOF
 ffmpeg -y -f concat -safe 0 -i concat.txt -c copy final.mp4
 ```
 
+```powershell
+# Windows PowerShell
+@"
+file 'media/videos/script/480p15/Scene1_Introduction.mp4'
+file 'media/videos/script/480p15/Scene2_CoreConcept.mp4'
+"@ | Set-Content concat.txt -Encoding UTF8
+ffmpeg -y -f concat -safe 0 -i concat.txt -c copy final.mp4
+```
+
 ### Step 5: Review
 
 ```bash
+# Linux / macOS / Git Bash / WSL
+manim -ql --format=png -s script.py Scene2_CoreConcept  # preview still
+```
+
+```powershell
+# Windows PowerShell (identical)
 manim -ql --format=png -s script.py Scene2_CoreConcept  # preview still
 ```
 

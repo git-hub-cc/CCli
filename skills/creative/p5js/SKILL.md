@@ -253,21 +253,28 @@ Key implementation patterns:
 ### Step 4: Preview & Iterate
 
 - Open HTML file directly in browser — no server needed for basic sketches
-- For `loadImage()`/`loadFont()` from local files: use `scripts/serve.sh` or `python3 -m http.server`
+- **Windows:** `Start-Process sketch.html`  |  **macOS:** `open sketch.html`  |  **Linux:** `xdg-open sketch.html`
+- For `loadImage()`/`loadFont()` from local files, use a local server:
+
+| Platform | Command |
+|----------|---------|
+| Linux / macOS | `bash scripts/serve.sh` or `python3 -m http.server 8080` |
+| Windows (PowerShell) | `pwsh -File scripts/serve.ps1` or `python -m http.server 8080` |
+
 - Chrome DevTools Performance tab to verify 60fps
 - Test at target export resolution, not just the window size
 - Adjust parameters until the visual matches the concept from Step 1
 
 ### Step 5: Export
 
-| Format | Method | Command |
-|--------|--------|---------|
-| **PNG** | `saveCanvas('output', 'png')` in `keyPressed()` | Press 's' to save |
-| **High-res PNG** | Puppeteer headless capture | `node scripts/export-frames.js sketch.html --width 3840 --height 2160 --frames 1` |
-| **GIF** | `saveGif('output', 5)` — captures N seconds | Press 'g' to save |
-| **Frame sequence** | `saveFrames('frame', 'png', 10, 30)` — 10s at 30fps | Then `ffmpeg -i frame-%04d.png -c:v libx264 output.mp4` |
-| **MP4** | Puppeteer frame capture + ffmpeg | `bash scripts/render.sh sketch.html output.mp4 --duration 30 --fps 30` |
-| **SVG** | `createCanvas(w, h, SVG)` with p5.js-svg | `save('output.svg')` |
+| Format | Method | Linux/macOS | Windows |
+|--------|--------|-------------|----------|
+| **PNG** | `saveCanvas('output', 'png')` in `keyPressed()` | Press 's' to save | Press 's' to save |
+| **High-res PNG** | Puppeteer headless capture | `node scripts/export-frames.js sketch.html --width 3840 --height 2160 --frames 1` | same |
+| **GIF** | `saveGif('output', 5)` — captures N seconds | Press 'g' to save | Press 'g' to save |
+| **Frame sequence** | `saveFrames('frame', 'png', 10, 30)` — 10s at 30fps | `ffmpeg -i frame-%04d.png -c:v libx264 output.mp4` | same (ffmpeg must be in PATH) |
+| **MP4** | Puppeteer frame capture + ffmpeg | `bash scripts/render.sh sketch.html output.mp4 --duration 30 --fps 30` | `pwsh -File scripts/render.ps1 sketch.html output.mp4 -Duration 30 -Fps 30` |
+| **SVG** | `createCanvas(w, h, SVG)` with p5.js-svg | `save('output.svg')` | same |
 
 ### Step 6: Quality Verification
 
@@ -484,11 +491,19 @@ For multi-scene videos, use the per-clip architecture: one HTML per scene, rende
 When building p5.js sketches:
 
 1. **Write the HTML file** — single self-contained file, all code inline
-2. **Open in browser** — `open sketch.html` (macOS) or `xdg-open sketch.html` (Linux)
-3. **Local assets** (fonts, images) require a server: `python3 -m http.server 8080` in the project directory, then open `http://localhost:8080/sketch.html`
+2. **Open in browser**
+   - macOS: `open sketch.html`
+   - Linux: `xdg-open sketch.html`
+   - Windows: `Start-Process sketch.html`
+3. **Local assets** (fonts, images) require a server:
+   - Linux/macOS: `python3 -m http.server 8080` or `bash scripts/serve.sh`
+   - Windows: `python -m http.server 8080` or `pwsh -File scripts/serve.ps1`
+   - Then open `http://localhost:8080/sketch.html`
 4. **Export PNG/GIF** — add `keyPressed()` shortcuts as shown above, tell the user which key to press
 5. **Headless export** — `node scripts/export-frames.js sketch.html --frames 300` for automated frame capture (sketch must use `noLoop()` + `_p5Ready`)
-6. **MP4 rendering** — `bash scripts/render.sh sketch.html output.mp4 --duration 30`
+6. **MP4 rendering**
+   - Linux/macOS: `bash scripts/render.sh sketch.html output.mp4 --duration 30`
+   - Windows: `pwsh -File scripts/render.ps1 sketch.html output.mp4 -Duration 30`
 7. **Iterative refinement** — edit the HTML file, user refreshes browser to see changes
 8. **Load references on demand** — use `skill_view(name="p5js", file_path="references/...")` to load specific reference files as needed during implementation
 

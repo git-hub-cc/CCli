@@ -22,19 +22,26 @@ This skill sets up authentication so the agent can work with GitHub repositories
 When a user asks you to work with GitHub, run this check first:
 
 ```bash
-# Check what's available
+# Linux / macOS / Git Bash / WSL
 git --version
 gh --version 2>/dev/null || echo "gh not installed"
-
-# Check if already authenticated
 gh auth status 2>/dev/null || echo "gh not authenticated"
 git config --global credential.helper 2>/dev/null || echo "no git credential helper"
+```
+
+```powershell
+# Windows PowerShell
+git --version
+try { gh --version } catch { Write-Host "gh not installed" }
+try { gh auth status } catch { Write-Host "gh not authenticated" }
+git config --global credential.helper
 ```
 
 **Decision tree:**
 1. If `gh auth status` shows authenticated → you're good, use `gh` for everything
 2. If `gh` is installed but not authenticated → use "gh auth" method below
-3. If `gh` is not installed → use "git-only" method below (no sudo needed)
+3. If `gh` is not installed → use "git-only" method below (no sudo/admin needed)
+4. **Windows only:** If `cmdkey /list:git:https://github.com` shows a stored credential → Git for Windows manages auth automatically via Windows Credential Manager
 
 ---
 
@@ -233,6 +240,19 @@ fi
 
 ---
 
+## Helper: Load Auth Environment
+
+Use the platform-appropriate helper script to detect auth state before any GitHub workflow:
+
+| Platform | Command |
+|----------|---------|
+| Linux / macOS / WSL | `source skills/github/github-auth/scripts/gh-env.sh` |
+| Windows (PowerShell) | `. skills\github\github-auth\scripts\gh-env.ps1` |
+
+The Windows PowerShell script additionally checks the **Windows Credential Manager** (where Git for Windows stores HTTPS tokens) and supports both `gh` CLI and direct token-based API calls.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -244,3 +264,7 @@ fi
 | Credentials not persisting | Check `git config --global credential.helper` — must be `store` or `cache` |
 | Multiple GitHub accounts | Use SSH with different keys per host alias in `~/.ssh/config`, or per-repo credential URLs |
 | `gh: command not found` + no sudo | Use git-only Method 1 above — no installation needed |
+| **Windows:** Credential prompt on every push | Git for Windows defaults to Windows Credential Manager; run `git config --global credential.helper manager` to ensure it's active |
+| **Windows:** `git credential reject` not clearing token | Open **Credential Manager** in Windows Settings → Windows Credentials → remove `git:https://github.com` entry |
+| **Windows:** `gh auth login` fails silently | Run `gh auth login --web` to force browser-based flow |
+| **Windows:** SSH key not found | Use `%USERPROFILE%\.ssh\` path; run ssh-keygen from Git Bash or PowerShell; add key via `ssh-add $env:USERPROFILE\.ssh\id_ed25519` |

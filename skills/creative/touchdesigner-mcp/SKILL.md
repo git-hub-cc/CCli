@@ -35,9 +35,10 @@ Hub health check: `GET http://localhost:40404/mcp` returns JSON with instance PI
 
 Run the setup script to handle everything:
 
-```bash
-bash "${HERMES_HOME:-$HOME/.hermes}/skills/creative/touchdesigner-mcp/scripts/setup.sh"
-```
+| Platform | Command |
+|----------|---------|
+| Linux / macOS | `bash "${HERMES_HOME:-$HOME/.hermes}/skills/creative/touchdesigner-mcp/scripts/setup.sh"` |
+| Windows (PowerShell) | `pwsh -File "$env:HERMES_HOME\skills\creative\touchdesigner-mcp\scripts\setup.ps1"` |
 
 The script will:
 1. Check if TD is running
@@ -53,8 +54,16 @@ The script will:
 3. **Restart Hermes session** to pick up the new MCP server
 
 After setup, verify:
+
 ```bash
+# Linux / macOS
 nc -z 127.0.0.1 40404 && echo "twozero MCP: READY"
+```
+
+```powershell
+# Windows PowerShell
+$tcp = New-Object System.Net.Sockets.TcpClient
+try { $tcp.Connect("127.0.0.1", 40404); Write-Host "twozero MCP: READY" } catch { Write-Host "Port 40404 not open" } finally { $tcp.Close() }
 ```
 
 ## Environment Notes
