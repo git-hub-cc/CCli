@@ -2,7 +2,6 @@ import { ActionRegistry } from './base.js';
 import { TextAction } from './text.action.js';
 import { FileAction } from './file.action.js';
 import { ShellAction } from './shell.action.js';
-import { ClipboardAction } from './clipboard.action.js';
 import { AskAction } from './ask.action.js';
 import { ContinueAction } from './continue.action.js';
 import { ContextAction } from './context.action.js';
@@ -26,7 +25,6 @@ export function registerAllActions() {
     ActionRegistry.register(new TextAction());
     ActionRegistry.register(new FileAction());
     ActionRegistry.register(new ShellAction());
-    ActionRegistry.register(new ClipboardAction());
     ActionRegistry.register(new AskAction());
     ActionRegistry.register(new ContinueAction());
     ActionRegistry.register(new ContextAction());
