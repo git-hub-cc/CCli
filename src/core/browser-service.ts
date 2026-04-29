@@ -31,36 +31,36 @@ export class BrowserService {
 
     /**
      * 获取全局共享的 CDP 浏览器宿主连接。
-     * 保证 <browser>, <wait>, <assert> 共享相同的 DOM 环境和登录态。
+     * 保证 <browser>, <assert> 共享相同的 DOM 环境和登录态。
      */
     public static async getSharedPage(): Promise<{ browser: Browser, context: BrowserContext, page: Page }> {
         // 如果当前内存中已有存活的页面实例，复用连接并动态追踪最新页面，避免反复触发 CDP 握手
         if (this.browser && this.context && this.page && !this.page.isClosed()) {
             const pages = this.context.pages();
             const validPages = pages.filter(p => !p.isClosed());
-            
+
             if (validPages.length > 0) {
                 this.page = validPages[validPages.length - 1];
-                
+
                 if (validPages.length > 1) {
                     for (let i = 0; i < validPages.length - 1; i++) {
-                        validPages[i].close().catch(() => {}); 
+                        validPages[i].close().catch(() => {});
                     }
                 }
             } else {
                 this.page = await this.context.newPage();
             }
-            
+
             return { browser: this.browser, context: this.context, page: this.page };
         }
 
         const isOpen = await this.isPortOpen(CDP_PORT);
-        
+
         if (!isOpen) {
             sysLogger.log(LogLevel.INFO, `检测到浏览器自动化宿主未启动，正在拉起持久化守护进程 (端口: ${CDP_PORT})...`);
             let chromePath = '';
             let browserName = 'chrome';
-            
+
             if (process.platform === 'win32') {
                 chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
                 if (!fs.existsSync(chromePath)) {
@@ -88,7 +88,7 @@ export class BrowserService {
                     fs.mkdirSync(logDir, { recursive: true });
                 }
             }
-            
+
             const crashLogPath = path.join(logDir, `browser-crash-${browserName}-${CDP_PORT}.log`);
             const errLogStream = fs.openSync(crashLogPath, 'a');
 
@@ -102,20 +102,20 @@ export class BrowserService {
                 '--disable-sync',
                 '--disable-client-side-phishing-detection',
                 '--disable-default-apps'
-            ], { 
-                detached: true, 
-                stdio: ['ignore', 'ignore', errLogStream] 
+            ], {
+                detached: true,
+                stdio: ['ignore', 'ignore', errLogStream]
             });
-            
+
             child.unref();
 
             for (let i = 0; i < 20; i++) {
                 await new Promise(r => setTimeout(r, 500));
-                
+
                 if (child.exitCode !== null) {
                     throw new Error(`浏览器守护进程已意外崩溃退出 (Exit Code: ${child.exitCode})，请检查日志: ${crashLogPath}`);
                 }
-                
+
                 if (await this.isPortOpen(CDP_PORT)) break;
             }
         }
@@ -123,15 +123,15 @@ export class BrowserService {
         this.browser = await chromium.connectOverCDP(CDP_URL, { timeout: 15000 });
         this.context = this.browser.contexts()[0];
         const pages = this.context.pages();
-        
+
         const validPages = pages.filter(p => !p.isClosed());
 
         if (validPages.length > 0) {
             this.page = validPages[validPages.length - 1];
-            
+
             if (validPages.length > 1) {
                 for (let i = 0; i < validPages.length - 1; i++) {
-                    validPages[i].close().catch(() => {}); 
+                    validPages[i].close().catch(() => {});
                 }
             }
         } else {

@@ -73,7 +73,7 @@ export class ListenAction extends BaseAction {
                             sender = data.sender?.name || data.sender?.id || sender;
                             // 提取消息内容
                             msgContent = data.content || '';
-                            
+
                             // 尝试清理微信 ID 的后缀，让它对 AI 看起来更干净些
                             sender = sender.replace('@im.wechat', '');
 
@@ -92,7 +92,22 @@ export class ListenAction extends BaseAction {
                                 if (url) {
                                     // 容错：将 localhost 替换为 127.0.0.1 确保 Node fetch 能够访问
                                     const downloadUrl = url.replace('localhost', '127.0.0.1');
-                                    const ext = item.media?.ct ? `.${item.media.ct.split('/')[1]}` : '.mp4';
+
+                                    let ext = '.mp4';
+                                    try {
+                                        const urlObj = new URL(downloadUrl);
+                                        const ctParam = urlObj.searchParams.get('ct');
+                                        if (ctParam) {
+                                            ext = `.${ctParam.split('/')[1]}`;
+                                        } else if (type === 'image') {
+                                            ext = '.jpg';
+                                        } else if (type === 'voice' || type === 'audio') {
+                                            ext = '.mp3';
+                                        }
+                                    } catch (e) {
+                                        if (type === 'image') ext = '.jpg';
+                                    }
+
                                     const filename = `incoming_${Date.now()}${ext}`;
                                     const savePath = path.resolve(process.cwd(), localConfig.incomingFileDir, filename);
 
