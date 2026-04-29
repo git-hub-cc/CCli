@@ -9,10 +9,13 @@ export interface KeyboardInstruction {
 }
 
 const modifierMap: Record<string, Key> = {
-    '^': Key.LeftControl,
-    '!': Key.LeftAlt,
-    '+': Key.LeftShift,
-    '#': Key.LeftSuper,
+    'ctrl': Key.LeftControl,
+    'control': Key.LeftControl,
+    'alt': Key.LeftAlt,
+    'shift': Key.LeftShift,
+    'win': Key.LeftSuper,
+    'super': Key.LeftSuper,
+    'meta': Key.LeftSuper,
 };
 
 const specialKeyMap: Record<string, Key> = {
@@ -51,75 +54,38 @@ const charKeyMap: Record<string, Key> = {
 export class KeyboardParser {
     static parse(input: string): KeyboardInstruction[] {
         const instructions: KeyboardInstruction[] = [];
-        let i = 0;
-        let activeModifiers: Key[] = [];
-        let textBuffer = '';
 
-        const flushText = () => {
-            if (textBuffer.length > 0) {
-                instructions.push({ type: 'text', text: textBuffer });
-                textBuffer = '';
+        const parts = input.toLowerCase().split('+').map(p => p.trim()).filter(Boolean);
+
+        const modifiers: Key[] = [];
+        let mainKey: Key | undefined;
+
+        for (const part of parts) {
+            if (modifierMap[part]) {
+                modifiers.push(modifierMap[part]);
+            } else if (specialKeyMap[part]) {
+                mainKey = specialKeyMap[part];
+            } else if (charKeyMap[part]) {
+                mainKey = charKeyMap[part];
             }
-        };
-
-        while (i < input.length) {
-            const char = input[i];
-
-            if (modifierMap[char]) {
-                flushText();
-                activeModifiers.push(modifierMap[char]);
-                i++;
-                continue;
-            }
-
-            if (char === '{') {
-                flushText();
-                const closeIdx = input.indexOf('}', i);
-                if (closeIdx !== -1) {
-                    const inner = input.substring(i + 1, closeIdx).trim();
-                    const parts = inner.split(/\s+/);
-                    const keyName = parts[0].toLowerCase();
-                    const repeat = parts.length > 1 ? parseInt(parts[1], 10) : 1;
-
-                    const targetKey = specialKeyMap[keyName] || charKeyMap[keyName];
-
-                    if (targetKey) {
-                        instructions.push({
-                            type: 'hotkey',
-                            modifiers: [...activeModifiers],
-                            key: targetKey,
-                            repeat: isNaN(repeat) ? 1 : repeat
-                        });
-                    } else {
-                        textBuffer += '{' + inner + '}';
-                    }
-                    activeModifiers = [];
-                    i = closeIdx + 1;
-                    continue;
-                }
-            }
-
-            if (activeModifiers.length > 0) {
-                const targetKey = charKeyMap[char.toLowerCase()];
-                if (targetKey) {
-                    instructions.push({
-                        type: 'hotkey',
-                        modifiers: [...activeModifiers],
-                        key: targetKey,
-                        repeat: 1
-                    });
-                } else {
-                    instructions.push({ type: 'text', text: char });
-                }
-                activeModifiers = [];
-            } else {
-                textBuffer += char;
-            }
-
-            i++;
         }
 
-        flushText();
+        if (mainKey) {
+            instructions.push({
+                type: 'hotkey',
+                modifiers: modifiers,
+                key: mainKey,
+                repeat: 1
+            });
+        } else if (modifiers.length > 0) {
+            instructions.push({
+                type: 'hotkey',
+                modifiers: [],
+                key: modifiers[0],
+                repeat: 1
+            });
+        }
+
         return instructions;
     }
 }

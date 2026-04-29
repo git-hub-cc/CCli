@@ -112,7 +112,7 @@ export class GeminiWebProvider implements ILLMProvider {
                 await this.page.bringToFront();
                 await latestMessageBlock.hover();
 
-                await copyBtn.waitFor({ state: 'attached', timeout: 5000 });
+                await copyBtn.waitFor({ state: 'attached', timeout: 50000 });
                 await copyBtn.scrollIntoViewIfNeeded();
                 await copyBtn.click({ force: true });
                 await this.page.waitForTimeout(800);

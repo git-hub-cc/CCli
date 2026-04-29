@@ -94,7 +94,7 @@ export async function refreshSystemProbe(): Promise<string> {
     // 5. 组装带有 Frontmatter 的最终内容
     const probeContent = `---
 name: 01环境.md
-description: 系统与目录环境信息。
+description: 系统与目录环境信息，执行命令前要进行加载。
 tags: 系统, 环境
 ---
 
