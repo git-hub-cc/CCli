@@ -2,7 +2,6 @@ import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { keyboard } from '@nut-tree/nut-js';
 import { KeyboardParser } from '../core/keyboard-parser.js';
-import { execa } from 'execa';
 import { localConfig } from '../core/config.js';
 
 /**
@@ -24,49 +23,7 @@ export class KeyboardAction extends BaseAction {
 
         sysLogger.log(LogLevel.ACTION, `准备执行物理键盘操作: [${action}] ${targetText}`);
 
-        let originalHkl: string | null = null;
-
         try {
-            if (process.platform === 'win32') {
-                try {
-                    const psGetAndSwitch = `
-                        Add-Type @"
-                        using System;
-                        using System.Runtime.InteropServices;
-                        public class Win32 {
-                            [DllImport("user32.dll")]
-                            public static extern IntPtr GetForegroundWindow();
-                            [DllImport("user32.dll")]
-                            public static extern uint GetWindowThreadProcessId(IntPtr hwnd, IntPtr proccess);
-                            [DllImport("user32.dll")]
-                            public static extern IntPtr GetKeyboardLayout(uint thread);
-                            [DllImport("user32.dll")]
-                            public static extern IntPtr PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-                        }
-"@
-                        $hwnd = [Win32]::GetForegroundWindow()
-                        $threadId = [Win32]::GetWindowThreadProcessId($hwnd, [IntPtr]::Zero)
-                        $currentHkl = [Win32]::GetKeyboardLayout($threadId)
-                        $engHkl = [IntPtr]0x04090409
-
-                        Write-Output $currentHkl.ToInt64()
-
-                        if ($currentHkl -ne $engHkl) {
-                            [Win32]::PostMessage($hwnd, 0x0050, [IntPtr]::Zero, $engHkl) | Out-Null
-                        }
-                    `;
-                    const { stdout } = await execa('powershell', ['-NoProfile', '-Command', psGetAndSwitch]);
-                    const hklValue = stdout.trim();
-
-                    if (hklValue && hklValue !== '67699721') {
-                        originalHkl = hklValue;
-                        await new Promise(r => setTimeout(r, 150));
-                    }
-                } catch (e) {
-                    sysLogger.log(LogLevel.WARN, `尝试记录并切换输入法状态失败: ${e}`);
-                }
-            }
-
             keyboard.config.autoDelayMs = 50;
 
             if (action.toLowerCase() === 'text') {
@@ -105,29 +62,6 @@ export class KeyboardAction extends BaseAction {
             return { type: 'keyboard', content: `【系统自动反馈】物理键盘已成功敲击或键入内容。` };
         } catch (err: any) {
             throw new Error(`物理键盘操作异常: ${err.message}`);
-        } finally {
-            if (originalHkl) {
-                try {
-                    const psRestore = `
-                        Add-Type @"
-                        using System;
-                        using System.Runtime.InteropServices;
-                        public class Win32 {
-                            [DllImport("user32.dll")]
-                            public static extern IntPtr GetForegroundWindow();
-                            [DllImport("user32.dll")]
-                            public static extern IntPtr PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-                        }
-"@
-                        $hwnd = [Win32]::GetForegroundWindow()
-                        [Win32]::PostMessage($hwnd, 0x0050, [IntPtr]::Zero, [IntPtr]${originalHkl}) | Out-Null
-                    `;
-                    await execa('powershell', ['-NoProfile', '-Command', psRestore]);
-                    sysLogger.log(LogLevel.INFO, '已恢复输入法至初始状态。');
-                } catch (e) {
-                    sysLogger.log(LogLevel.WARN, `尝试恢复输入法状态失败: ${e}`);
-                }
-            }
         }
     }
 }

@@ -47,7 +47,7 @@ export class ListenAction extends BaseAction {
     }
 
     // 默认的注入提示词，要求 AI 在思考后使用 weixin_send 宏技能进行物理回传
-    public static startWebhookServer(callbackPrompt: string = '收到来自微信用户 "{sender}" 的推送消息：{message}\n请你作为 AI 助手处理该消息，并在回答时必须使用 <weixin_send contacts="{sender}">你的回复内容</weixin_send> 标签将处理结果回传给该用户。') {
+    public static async startWebhookServer(callbackPrompt: string = '收到来自微信用户 "{sender}" 的推送消息：{message}\n请你作为 AI 助手处理该消息，并在回答时必须使用 <weixin_send contacts="{sender}">你的回复内容</weixin_send> 标签将处理结果回传给该用户。'): Promise<void> {
         const port = localConfig.webhookPort;
         if (ListenAction.webhookServer) {
             return;
@@ -113,9 +113,9 @@ export class ListenAction extends BaseAction {
 
                                     sysLogger.log(LogLevel.INFO, `检测到外部媒体 (${type})，正在尝试下载...`);
                                     try {
-                                        // 添加鉴权头，解决 401 Unauthorized 问题
                                         const downloadOpts: RequestInit = {};
-                                        if (localConfig.openilinkToken && downloadUrl.includes('127.0.0.1')) {
+                                        // 彻底移除对 127.0.0.1 的硬编码限制，确保局域网或内网穿透域名也能携带鉴权头
+                                        if (localConfig.openilinkToken) {
                                             downloadOpts.headers = {
                                                 'Authorization': `Bearer ${localConfig.openilinkToken}`
                                             };
@@ -148,18 +148,24 @@ export class ListenAction extends BaseAction {
             }
         });
 
-        ListenAction.webhookServer.listen(port, () => {
-            sysLogger.log(LogLevel.SUCCESS, `OpeniLink Webhook 监听已启动: http://127.0.0.1:${port}/webhook/wechat`);
+        return new Promise<void>((resolve, reject) => {
+            ListenAction.webhookServer!.listen(port, () => {
+                sysLogger.log(LogLevel.SUCCESS, `OpeniLink Webhook 监听已启动: http://127.0.0.1:${port}/webhook/wechat`);
+                resolve();
+            }).on('error', (err) => {
+                sysLogger.log(LogLevel.ERROR, `Webhook 端口监听失败: ${err.message}`);
+                reject(err);
+            });
         });
     }
 
-    private handleWebhookWatch(callbackPrompt: string): ActionResult {
+    private async handleWebhookWatch(callbackPrompt: string): Promise<ActionResult> {
         const port = localConfig.webhookPort;
         if (ListenAction.webhookServer) {
             return { type: 'listen', content: `【系统自动反馈】Webhook 服务已在端口 ${port} 运行中，持续监听外部推送。` };
         }
 
-        ListenAction.startWebhookServer(callbackPrompt);
+        await ListenAction.startWebhookServer(callbackPrompt);
 
         return {
             type: 'listen',

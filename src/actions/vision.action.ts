@@ -27,12 +27,12 @@ export class VisionAction extends BaseAction {
             const filePath = path.join(ocrModelDir, fileName);
 
             if (!fs.existsSync(filePath)) {
-                sysLogger.log(LogLevel.INFO, `检测到缺失 OCR 语言包: ${fileName}，正在尝试自动下载...`);
+                sysLogger.log(LogLevel.INFO, `检测到缺失 OCR 语言包: ${fileName}，正在尝试自动下载 (超时: 15s)...`);
                 // 使用官方推荐的 4.0.0 版本的训练数据镜像
                 const url = `https://raw.githubusercontent.com/naptha/tessdata/gh-pages/4.0.0/${fileName}`;
 
                 try {
-                    const response = await fetch(url);
+                    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
                     if (!response.ok) {
                         throw new Error(`网络响应异常: ${response.status} ${response.statusText}`);
                     }
@@ -41,6 +41,9 @@ export class VisionAction extends BaseAction {
                     fs.writeFileSync(filePath, buffer);
                     sysLogger.log(LogLevel.SUCCESS, `语言包 ${fileName} 已成功下载并保存至本地。`);
                 } catch (err: any) {
+                    if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+                        throw new Error(`自动下载 OCR 语言包网络超时 (15s): ${fileName}\n由于网络环境受限，请手动下载并放置到: ${filePath}`);
+                    }
                     throw new Error(`自动下载 OCR 语言包失败: ${err.message}\n请手动下载并放置到: ${filePath}`);
                 }
             }
@@ -97,7 +100,7 @@ export class VisionAction extends BaseAction {
 
                     sysLogger.log(LogLevel.INFO, `正在执行本地屏幕文本识别 (PaddleOCR 排版模式)...`);
                     const scriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'paddleocr-bridge.py');
-                    
+
                     const { stdout, stderr } = await execa('python', [scriptPath, imgPath, ocrModelDir], {
                         timeout: 60000,
                         env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
@@ -106,7 +109,7 @@ export class VisionAction extends BaseAction {
                     if (stderr && !stdout) {
                         sysLogger.log(LogLevel.WARN, `PaddleOCR 标准错误输出: ${stderr}`);
                     }
-                    
+
                     ocrText = stdout.trim();
                 } else {
                     const ocrModelDir = path.resolve(process.cwd(), '.ccli', 'ocr', 'tesseract');
@@ -128,7 +131,7 @@ export class VisionAction extends BaseAction {
 
                     const { data } = await worker.recognize(imgPath);
                     await worker.terminate();
-                    
+
                     ocrText = data.text.trim();
                 }
 

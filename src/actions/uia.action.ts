@@ -26,15 +26,11 @@ export class UiaAction extends BaseAction {
 
         try {
             const scriptPath = path.resolve(PKG_ROOT, 'scripts', 'python', 'uia-bridge.py');
-            const args = ['--action', action, '--target', target];
 
-            if (attributes['id']) {
-                args.push('--id', attributes['id']);
-            }
-
-            const value = attributes['value'] || content;
+            const value = attributes['value'] || content || attributes['id'] || '';
+            const args = [action, target];
             if (value) {
-                args.push('--value', value);
+                args.push(value);
             }
 
             const { stdout, stderr } = await execa('python', [scriptPath, ...args], {
@@ -48,17 +44,27 @@ export class UiaAction extends BaseAction {
 
             const result = JSON.parse(stdout.trim());
 
-            if (result.status === 'error') {
-                throw new Error(result.message);
+            if (result.error || result.status === 'error') {
+                throw new Error(result.error || result.message);
             }
 
             if (action === 'scan') {
-                const elements = result.elements || [];
+                const elements = result.data || result.elements || [];
                 if (elements.length === 0) {
                     return { type: 'uia', content: `【系统自动反馈】未在窗口 "${target}" 可视区域内检测到有效的交互元素。` };
                 }
 
-                const formatList = elements.map((e: any) => `[${e.id}] ${e.type} - "${e.name}"`);
+                const formatList = elements.map((e: any, index: number) => `[${e.id || index + 1}] ${e.type} - "${e.name}"`);
+                const hasBbox = elements.some((e: any) => e.bbox && e.bbox.w > 0);
+
+                if (!hasBbox) {
+                    const fullContent = `【系统自动反馈：UIA 交互元素扫描结果】\n------------------------------------------\n${formatList.join('\n')}\n------------------------------------------\n提示：请使用 action="click/type" 并传入 value 执行后续操作。`;
+                    return {
+                        type: 'uia',
+                        content: `【系统自动反馈：UIA 交互元素扫描结果】\n已提取基础元素。提示：请使用 action="click/type" 并传入 value 执行后续操作。`,
+                        payload: { fullContent, isStatefulOverwrite: 'uia_scan' }
+                    };
+                }
 
                 let htmlContent = `<!DOCTYPE html>
 <html>
@@ -154,8 +160,8 @@ export class UiaAction extends BaseAction {
                 };
             }
 
-            sysLogger.log(LogLevel.SUCCESS, `UIA 操作执行成功: ${result.message}`);
-            return { type: 'uia', content: `【系统自动反馈】${result.message}` };
+            sysLogger.log(LogLevel.SUCCESS, `UIA 操作执行成功: ${result.message || '完成'}`);
+            return { type: 'uia', content: `【系统自动反馈】${result.message || '操作成功'}` };
 
         } catch (err: any) {
             if (err.timedOut) {

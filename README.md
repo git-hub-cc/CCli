@@ -102,6 +102,10 @@ AGENTROUTER_MODEL=deepseek-v3.1
 # 启动默认配置对话
 ccli chat
 
+# 指定模型提供商 (支持简写 -p)
+ccli chat --provider doubao
+ccli chat -p doubao
+
 # 静默后台模式 (不弹出浏览器)
 ccli chat --headless
 ```
@@ -126,15 +130,13 @@ ccli chat --headless
 
 ---
 
-## 🛠️ 内置宏技能库 (Macros)
+## 🛠️ 本地可用扩展技能 (Skills)
 
-存放在 `macros/` 目录下的 `.md` 文件会自动被注册为 AI 可用的技能：
-- `<scan />`: 扫描当前目录下的有效文件树。
-- `<get-app-paths />`: 获取当前系统所有已安装应用的绝对路径。
-- `<list-running-apps />`: 查看当前运行中的应用窗口列表。
-- `<screenshot>软件名称,保存路径</screenshot>`: 截取指定窗口或全屏。
-- `<wechat-send>搜索词,消息文本,文件路径</wechat-send>`: 自动操作微信发送消息。
-
+存放在 `skills/` 目录下的 `.md` 文件会自动被注册为 AI 可用的技能：
+- `/skill list`：在会话中列出所有已注册的可用技能。
+- `/skill search <关键词>`：搜索特定功能的技能，快速定位工具。
+- `/skill inspect <技能名>`：深入查看技能详情及其背后的源码逻辑。
+- **AIML 标签调用**：在对话中通过特定标签直接触发技能自动化执行。
 ---
 
 ## 🧠 记忆复盘模式 (/recap)
@@ -152,6 +154,7 @@ AI 会全局审视项目和历史记录，并执行自我优化：
 ccli/
 ├── .ccli/               # 运行时生成的配置文件、浏览器 Profile 及长记忆数据
 ├── config/              # 全局运行参数
+├── skills/              # 本地可用扩展技能
 ├── macros/              # 动态宏技能定义
 ├── prompts/             # 系统 System Prompt 模块
 ├── scripts/             # 底层执行脚本 (Python / AutoHotkey)

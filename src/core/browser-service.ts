@@ -2,7 +2,6 @@ import { chromium, type BrowserContext, type Page, type Browser } from 'playwrig
 import path from 'path';
 import os from 'os';
 import { spawn } from 'child_process';
-import net from 'net';
 import fs from 'fs';
 import { sysLogger, LogLevel } from './logger.js';
 
@@ -19,14 +18,14 @@ export class BrowserService {
      * 探测本地调试端口是否已经开启
      */
     private static async isPortOpen(port: number): Promise<boolean> {
-        return new Promise((resolve) => {
-            const socket = new net.Socket();
-            socket.setTimeout(1000);
-            socket.once('connect', () => { socket.destroy(); resolve(true); });
-            socket.once('timeout', () => { socket.destroy(); resolve(false); });
-            socket.once('error', () => { socket.destroy(); resolve(false); });
-            socket.connect(port, '127.0.0.1');
-        });
+        try {
+            const response = await fetch(`http://127.0.0.1:${port}/json/version`, {
+                signal: AbortSignal.timeout(1000)
+            });
+            return response.ok;
+        } catch (e) {
+            return false;
+        }
     }
 
     /**
@@ -62,10 +61,19 @@ export class BrowserService {
             let browserName = 'chrome';
 
             if (process.platform === 'win32') {
-                chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-                if (!fs.existsSync(chromePath)) {
-                    chromePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-                    browserName = 'edge';
+                const paths = [
+                    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+                    path.join(os.homedir(), 'AppData\\Local\\Google\\Chrome\\Application\\chrome.exe'),
+                    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+                    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+                ];
+                for (const p of paths) {
+                    if (fs.existsSync(p)) {
+                        chromePath = p;
+                        if (p.includes('msedge.exe')) browserName = 'edge';
+                        break;
+                    }
                 }
             } else if (process.platform === 'darwin') {
                 chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -73,8 +81,8 @@ export class BrowserService {
                 chromePath = '/usr/bin/google-chrome';
             }
 
-            if (!fs.existsSync(chromePath)) {
-                throw new Error(`未能在默认路径找到 Chrome/Edge 浏览器，请检查安装状态。`);
+            if (!chromePath || !fs.existsSync(chromePath)) {
+                throw new Error(`未能在系统常见路径中找到 Chrome/Edge 浏览器，请检查安装状态。`);
             }
 
             let logDir = '';
@@ -109,7 +117,7 @@ export class BrowserService {
 
             child.unref();
 
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 30; i++) {
                 await new Promise(r => setTimeout(r, 500));
 
                 if (child.exitCode !== null) {

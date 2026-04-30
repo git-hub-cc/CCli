@@ -4,9 +4,6 @@ import { execa } from 'execa';
 import { handleActivate } from './windows/activate.js';
 import { localConfig } from '../core/config.js';
 
-/**
- * 处理 <window> 标签：管理操作系统窗口生命周期与物理属性提取
- */
 export class WindowAction extends BaseAction {
     tag = 'window';
 
@@ -23,7 +20,6 @@ export class WindowAction extends BaseAction {
 
         sysLogger.log(LogLevel.ACTION, `准备执行窗口操作: ${action} -> ${target}`);
 
-        // 优先尝试特化唤醒逻辑（如快捷键唤醒）
         if (action.toLowerCase() === 'activate') {
             const specialResult = await handleActivate(target);
             if (specialResult) {
@@ -55,12 +51,12 @@ export class WindowAction extends BaseAction {
 "@
                     $processes = Get-Process | Where-Object { ($_.MainWindowTitle -like '*${safeTarget}*' -or $_.ProcessName -like '*${safeTarget}*') -and $_.MainWindowHandle -ne 0 }
                     if (-not $processes) { Write-Output "NOT_FOUND"; exit 0 }
-                    
+
                     $validProcess = $processes | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
                     if (-not $validProcess) { Write-Output "NO_HWND"; exit 0 }
-                    
+
                     $hwnd = $validProcess.MainWindowHandle
-                    
+
                     $action = '${action}'.ToLower()
                     if ($action -eq 'activate') {
                         if ([Win32]::IsIconic($hwnd)) { [Win32]::ShowWindowAsync($hwnd, 9) | Out-Null }

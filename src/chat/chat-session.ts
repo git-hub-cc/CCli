@@ -57,13 +57,13 @@ export class ChatSession {
             sysLogger.appendChat('Prompt_Context', '> 💾 已归档至: [prompts.md](prompts.md)');
 
             if (localConfig.autoListenWebhook) {
-                ListenAction.startWebhookServer();
+                await ListenAction.startWebhookServer();
             }
 
             this.contextManager.on('external_message', (payload: any) => {
                 let msg = '';
                 let files: string[] = [];
-                
+
                 if (typeof payload === 'string') {
                     msg = payload;
                 } else if (payload && payload.prompt) {
@@ -153,8 +153,8 @@ export class ChatSession {
                 const promptWithHint = this.contextManager.getPromptWithHints(text);
                 this.contextManager.addMessage('User', text);
 
-                const finalPrompt = this.sessionContext.isFirstTurn 
-                    ? `${this.sessionContext.systemPrompt}\n\n${promptWithHint}` 
+                const finalPrompt = this.sessionContext.isFirstTurn
+                    ? `${this.sessionContext.systemPrompt}\n\n${promptWithHint}`
                     : promptWithHint;
 
                 sysLogger.appendChat('Raw_User', text);

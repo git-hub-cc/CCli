@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { BaseAction, ActionResult } from './base.js';
 import { sysLogger, LogLevel } from '../core/logger.js';
 import { BrowserService } from '../core/browser-service.js';
@@ -202,7 +200,7 @@ export class BrowserAction extends BaseAction {
                     await locator.evaluate((node) => {
                         const el = node as HTMLElement;
                         if (el.getAttribute('target') === '_blank') el.removeAttribute('target');
-                        
+
                         const aTag = el.closest('a');
                         if (aTag) {
                             aTag.removeAttribute('target');
@@ -214,7 +212,7 @@ export class BrowserAction extends BaseAction {
                             };
                         }
                     }).catch(() => {});
-                    
+
                     await locator.click({ force: true, timeout: 15000 });
                     sysLogger.log(LogLevel.SUCCESS, `已点击元素 [${targetId}]`);
                     return { type: 'browser', content: `【系统自动反馈】已成功点击元素 [${targetId}]。` };

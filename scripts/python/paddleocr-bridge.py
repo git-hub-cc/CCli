@@ -1,98 +1,96 @@
 import sys
-import json
-import argparse
-import subprocess
 import os
+import json
+import subprocess
+import base64
+from io import BytesIO
 
 def ensure_dependencies():
+    missing_deps = []
     try:
         import paddleocr
     except ImportError:
-        print(json.dumps({"status": "info", "message": "正在自动安装依赖 paddlepaddle 和 paddleocr..."}), file=sys.stderr)
+        missing_deps.append('paddleocr>=2.0.1')
+
+    try:
+        import paddle
+    except ImportError:
+        missing_deps.append('paddlepaddle')
+
+    try:
+        from PIL import Image
+    except ImportError:
+        missing_deps.append('Pillow')
+
+    if missing_deps:
+        print(json.dumps({
+            "status": "info",
+            "message": f"正在首次初始化视觉环境，自动安装依赖: {', '.join(missing_deps)}，请稍候..."
+        }), flush=True)
         try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "paddlepaddle", "paddleocr>=2.0.1"], stdout=subprocess.DEVNULL)
-        except subprocess.CalledProcessError as e:
-            print(json.dumps({"status": "error", "message": f"自动安装依赖失败: {e}"}), file=sys.stderr)
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + missing_deps)
+            # 强制刷新缓存库
+            import site
+            from importlib import reload
+            reload(site)
+        except Exception as e:
+            print(json.dumps({
+                "status": "error",
+                "message": f"依赖安装失败，请手动执行 pip install {' '.join(missing_deps)}。错误信息: {str(e)}"
+            }))
             sys.exit(1)
 
-ensure_dependencies()
-
-from paddleocr import PaddleOCR
-
-def get_y(line):
-    return sum([pt[1] for pt in line[0]]) / 4
-
-def get_x(line):
-    return sum([pt[0] for pt in line[0]]) / 4
-
-def get_h(line):
-    pts = line[0]
-    return ((pts[2][1] + pts[3][1]) / 2) - ((pts[0][1] + pts[1][1]) / 2)
-
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("img_path", help="截图绝对路径")
-    parser.add_argument("model_dir", help="本地模型存放目录")
-    
-    args = parser.parse_args()
+    try:
+        ensure_dependencies()
 
-    det_dir = os.path.join(args.model_dir, 'det')
-    rec_dir = os.path.join(args.model_dir, 'rec')
-    cls_dir = os.path.join(args.model_dir, 'cls')
+        from paddleocr import PaddleOCR
+        from PIL import Image
+        import numpy as np
 
-    # 初始化并拦截日志输出
-    ocr = PaddleOCR(
-        use_angle_cls=True, 
-        lang="ch", 
-        show_log=False, 
-        det_model_dir=det_dir, 
-        rec_model_dir=rec_dir, 
-        cls_model_dir=cls_dir
-    )
-    
-    result = ocr.ocr(args.img_path, cls=True)
-    
-    if not result or not result[0]:
-        print("")
-        return
+        if len(sys.argv) < 2:
+            print(json.dumps({"status": "error", "message": "Missing image path or base64 argument"}))
+            sys.exit(1)
 
-    lines = result[0]
-    
-    # 按照纵向 Y 坐标进行整体初排
-    lines.sort(key=lambda x: get_y(x))
-    
-    grouped_lines = []
-    current_line = []
-    current_y = None
-    
-    # 将同一水平线上的元素划分为同一行，还原表格与多栏排版
-    for line in lines:
-        y = get_y(line)
-        h = get_h(line)
-        threshold = h * 0.5 if h > 0 else 10
-        
-        if current_y is None:
-            current_y = y
-            current_line.append(line)
-        elif abs(y - current_y) < threshold:
-            current_line.append(line)
-            current_y = sum([get_y(l) for l in current_line]) / len(current_line)
+        image_input = sys.argv[1]
+
+        if image_input.startswith('base64,'):
+            img_data = base64.b64decode(image_input.split(',')[1])
+            img = Image.open(BytesIO(img_data)).convert('RGB')
+            img_array = np.array(img)
         else:
-            current_line.sort(key=lambda x: get_x(x))
-            grouped_lines.append(current_line)
-            current_line = [line]
-            current_y = y
-            
-    if current_line:
-        current_line.sort(key=lambda x: get_x(x))
-        grouped_lines.append(current_line)
+            if not os.path.exists(image_input):
+                print(json.dumps({"status": "error", "message": f"Image file not found: {image_input}"}))
+                sys.exit(1)
+            img = Image.open(image_input).convert('RGB')
+            img_array = np.array(img)
 
-    final_text = []
-    for group in grouped_lines:
-        texts = [item[1][0] for item in group]
-        final_text.append("    ".join(texts))
-    
-    print("\n".join(final_text))
+        ocr = PaddleOCR(use_angle_cls=True, lang='ch', show_log=False)
+        result = ocr.ocr(img_array, cls=True)
 
-if __name__ == "__main__":
+        texts = []
+        if result and result[0]:
+            for line in result[0]:
+                box = line[0]
+                text = line[1][0]
+                confidence = line[1][1]
+                texts.append({
+                    "text": text,
+                    "box": box,
+                    "confidence": float(confidence)
+                })
+
+        print(json.dumps({
+            "status": "success",
+            "data": texts
+        }, ensure_ascii=False))
+
+    except Exception as e:
+        print(json.dumps({
+            "status": "error",
+            "message": str(e)
+        }, ensure_ascii=False))
+        sys.exit(1)
+
+if __name__ == '__main__':
     main()

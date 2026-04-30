@@ -145,7 +145,7 @@ export class GeminiWebProvider implements ILLMProvider {
         sysLogger.log(LogLevel.INFO, '正在物理重置 Gemini 网页会话...');
         try {
             await this.page.goto('https://gemini.google.com/app', { waitUntil: 'domcontentloaded' });
-            await this.page.locator('rich-textarea').waitFor({ state: 'visible', timeout: 15000 });
+            await this.page.locator('rich-textarea').waitFor({ state: 'visible', timeout: 50000 });
             sysLogger.log(LogLevel.SUCCESS, '网页会话已重置。');
         } catch (error: any) {
             sysLogger.log(LogLevel.ERROR, `重置会话失败: ${error.message}`);
